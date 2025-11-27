@@ -2,7 +2,7 @@ import axios from 'axios';
 import useAuthStore from '../store/useAuthStore';
 
 const API_BASE =
-  import.meta.env?.VITE_API_URL?.replace(/\/$/, '') || 'https://game-backend-production-91ef.up.railway.app/api';
+  import.meta.env?.VITE_API_URL?.replace(/\/$/, '') || 'https://game-backend-production-d78d.up.railway.app/api';
 
 const api = axios.create({
   baseURL: API_BASE,
@@ -30,7 +30,7 @@ api.interceptors.response.use(
 export const socketBaseUrl =
   import.meta.env?.VITE_SOCKET_URL ||
   API_BASE.replace(/\/api$/, '') ||
-  'https://game-backend-production-91ef.up.railway.app';
+  'https://game-backend-production-d78d.up.railway.app';
 
 export default api;
 
