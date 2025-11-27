@@ -62,7 +62,7 @@ const GameLobby = () => {
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-sm uppercase tracking-[0.4em] text-white/60">Live Arena</p>
-            <h2 className="text-2xl font-semibold">Welcome back, {user?.username}</h2>
+            <h2 className="text-2xl font-semibold">Welcome back, {user?.studentName || user?.username}</h2>
           </div>
           <div className="flex flex-wrap gap-3">
             <button className="btn-primary" onClick={handleCreate} disabled={loading.create}>
@@ -112,7 +112,7 @@ const GameLobby = () => {
               <div>
                 <p className="text-sm uppercase tracking-[0.4em] text-white/40">{match.status}</p>
                 <p className="text-lg font-semibold">
-                  {match.host?.username || 'Host'} vs {match.guest?.username || '???'}
+                  {match.host?.studentName || match.host?.username || 'Host'} vs {match.guest?.studentName || match.guest?.username || '???'}
                 </p>
               </div>
               <p className="text-3xl font-display tracking-[0.3em] text-white/70">{match.code}</p>

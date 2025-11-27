@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
 import ArenaPage from './pages/ArenaPage';
+import SettingsPage from './pages/SettingsPage';
 import useAuthStore from './store/useAuthStore';
 
 const ProtectedRoute = ({ children }) => {
@@ -21,6 +22,14 @@ function App() {
           element={
             <ProtectedRoute>
               <ArenaPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <SettingsPage />
             </ProtectedRoute>
           }
         />

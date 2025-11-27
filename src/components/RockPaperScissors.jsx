@@ -90,7 +90,9 @@ const RockPaperScissors = () => {
       setOpponentStatus('Create or join a code to begin.');
       return;
     }
-    const rivalName = isHost ? currentGame.guest?.username : currentGame.host?.username;
+    const rivalName = isHost 
+      ? (currentGame.guest?.studentName || currentGame.guest?.username)
+      : (currentGame.host?.studentName || currentGame.host?.username);
     if (rivalName) {
       setOpponentStatus(`${rivalName} is connected. Throw a hand when ready.`);
       return;
@@ -121,14 +123,14 @@ const RockPaperScissors = () => {
       
       if (payload.isGameComplete) {
         const winnerName = payload.winner === 'host' 
-          ? currentGame?.host?.username 
-          : currentGame?.guest?.username;
+          ? (currentGame?.host?.studentName || currentGame?.host?.username)
+          : (currentGame?.guest?.studentName || currentGame?.guest?.username);
         setStatusMessage(`${winnerName} wins the match! First to 10 points.`);
       } else {
         setStatusMessage(
           payload.result === 'draw'
             ? 'Draw registered. Replay to continue.'
-            : `Round complete. Score: ${currentGame?.host?.username || 'Host'} ${payload.hostScore} - ${payload.guestScore} ${currentGame?.guest?.username || 'Guest'}`
+            : `Round complete. Score: ${currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} ${payload.hostScore} - ${payload.guestScore} ${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}`
         );
         // Clear result after 3 seconds to allow next round
         setTimeout(() => {
@@ -229,7 +231,7 @@ const RockPaperScissors = () => {
           </div>
           <div className="text-center">
             <p className="text-xs uppercase tracking-[0.4em] text-white/50">
-              {currentGame?.guest?.username || 'Guest'}
+              {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
             </p>
             <p className={`text-3xl font-bold ${scores.guest >= 10 ? 'text-aurora' : 'text-white'}`}>
               {scores.guest}
@@ -250,7 +252,7 @@ const RockPaperScissors = () => {
           </div>
           <div className="flex-1 rounded-2xl border border-white/5 bg-night/20 p-4 text-center">
             <p className="text-xs uppercase tracking-[0.4em] text-white/50">
-              {isHost ? currentGame.guest?.username || 'Challenger' : currentGame.host?.username || 'Host'}
+              {isHost ? (currentGame.guest?.studentName || currentGame.guest?.username || 'Challenger') : (currentGame.host?.studentName || currentGame.host?.username || 'Host')}
             </p>
             <p className={`text-6xl ${opponentLock ? '' : 'animate-pulse'}`}>{opponentHandDisplay}</p>
             <p className="text-white/60">
@@ -306,11 +308,11 @@ const RockPaperScissors = () => {
             <>
               <p className="text-4xl font-display text-aurora mt-2">
                 {result.winner === 'host' 
-                  ? `${currentGame?.host?.username || 'Host'} Wins!` 
-                  : `${currentGame?.guest?.username || 'Guest'} Wins!`}
+                  ? `${currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} Wins!` 
+                  : `${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} Wins!`}
               </p>
               <p className="text-white/70 mt-2">
-                Final Score: {currentGame?.host?.username || 'Host'} {result.hostScore} - {result.guestScore} {currentGame?.guest?.username || 'Guest'}
+                Final Score: {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} {result.hostScore} - {result.guestScore} {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
               </p>
             </>
           ) : (
@@ -319,11 +321,11 @@ const RockPaperScissors = () => {
                 {result.result === 'draw' ? 'Draw' : `${result.result.toUpperCase()} wins this round`}
               </p>
               <p className="text-white/70">
-                {currentGame?.host?.username || 'Host'} played <span className="font-semibold">{result.hostMove}</span> • {currentGame?.guest?.username || 'Guest'} played{' '}
+                {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} played <span className="font-semibold">{result.hostMove}</span> • {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} played{' '}
                 <span className="font-semibold">{result.guestMove}</span>
               </p>
               <p className="text-sm text-white/40 mt-2">
-                Score: {currentGame?.host?.username || 'Host'} {result.hostScore} - {result.guestScore} {currentGame?.guest?.username || 'Guest'}
+                Score: {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} {result.hostScore} - {result.guestScore} {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
               </p>
             </>
           )}

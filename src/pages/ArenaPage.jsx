@@ -34,8 +34,14 @@ const ArenaPage = () => {
           >
             {showStats ? 'Hide Stats' : 'View Stats'}
           </button>
+          <button
+            onClick={() => navigate('/settings')}
+            className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition"
+          >
+            Settings
+          </button>
           <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70">
-            {user?.email}
+            {user?.studentName || user?.username || user?.email}
           </span>
           <button className="btn-ghost" onClick={handleLogout}>
             Logout

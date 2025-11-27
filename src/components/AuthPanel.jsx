@@ -14,6 +14,15 @@ const AuthPanel = ({ onSuccess }) => {
     event.preventDefault();
     setLoading(true);
     setError('');
+    
+    // Validate email domain - only @bennett.edu.in allowed
+    const emailDomain = form.email.toLowerCase().trim();
+    if (!emailDomain.endsWith('@bennett.edu.in')) {
+      setError('Only @bennett.edu.in email addresses are allowed');
+      setLoading(false);
+      return;
+    }
+    
     try {
       const endpoint = mode === 'login' ? '/auth/login' : '/auth/register';
       const payload =
@@ -75,7 +84,7 @@ const AuthPanel = ({ onSuccess }) => {
             name="email"
             value={form.email}
             onChange={handleChange}
-            placeholder="player@ceteris-paribus.gg"
+            placeholder="student@bennett.edu.in"
             className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-aurora"
           />
         </div>

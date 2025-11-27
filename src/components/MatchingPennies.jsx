@@ -18,8 +18,6 @@ const MatchingPennies = () => {
   const [opponentStatus, setOpponentStatus] = useState('Create or join a code to begin.');
   const [scores, setScores] = useState({ host: 0, guest: 0 });
   const [roundNumber, setRoundNumber] = useState(0);
-  const [playerRole, setPlayerRole] = useState(null); // 'chooser' or 'guesser'
-
   const { socket, isConnected, isJoined } = useSocket({
     enabled: Boolean(currentGame),
     roomCode: currentGame?.code,
@@ -39,20 +37,13 @@ const MatchingPennies = () => {
     }
   }, [currentGame?.code, setCurrentGame]);
 
-  // Determine role based on round number (alternating)
+  // Constant roles: Host always chooses, Guest always chooses
   useEffect(() => {
     if (currentGame?.penniesRoundNumber !== undefined) {
       const round = currentGame.penniesRoundNumber || 0;
       setRoundNumber(round);
-      // Even rounds: Host chooses, Guest guesses
-      // Odd rounds: Guest chooses, Host guesses
-      if (round % 2 === 0) {
-        setPlayerRole(isHost ? 'chooser' : 'guesser');
-      } else {
-        setPlayerRole(isHost ? 'guesser' : 'chooser');
-      }
     }
-  }, [currentGame?.penniesRoundNumber, isHost]);
+  }, [currentGame?.penniesRoundNumber]);
 
   useEffect(() => {
     if (currentGame) {
@@ -71,7 +62,9 @@ const MatchingPennies = () => {
       setOpponentStatus('Create or join a code to begin.');
       return;
     }
-    const rivalName = isHost ? currentGame.guest?.username : currentGame.host?.username;
+    const rivalName = isHost 
+      ? (currentGame.guest?.studentName || currentGame.guest?.username)
+      : (currentGame.host?.studentName || currentGame.host?.username);
     if (rivalName) {
       setOpponentStatus(`${rivalName} is connected. Ready to play Matching Pennies.`);
       return;
@@ -94,20 +87,20 @@ const MatchingPennies = () => {
       
       if (payload.isGameComplete) {
         const winnerName = payload.winner === 'host' 
-          ? currentGame?.host?.username 
-          : currentGame?.guest?.username;
+          ? (currentGame?.host?.studentName || currentGame?.host?.username)
+          : (currentGame?.guest?.studentName || currentGame?.guest?.username);
         setStatusMessage(`${winnerName} wins the Matching Pennies match! First to 10 points.`);
       } else {
-        const roleText = payload.roundNumber % 2 === 0 
-          ? (isHost ? 'You choose, opponent guesses' : 'Opponent chooses, you guess')
-          : (isHost ? 'Opponent chooses, you guess' : 'You choose, opponent guesses');
+        const winnerText = payload.hostWon
+          ? `Both chose the same. ${currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} wins!`
+          : `Different choices. ${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} wins!`;
         setStatusMessage(
-          `Round ${payload.roundNumber} complete. ${roleText}. Score: ${currentGame?.host?.username || 'Host'} ${payload.hostScore} - ${payload.guestScore} ${currentGame?.guest?.username || 'Guest'}`
+          `Round ${payload.roundNumber} complete. ${winnerText} Score: ${currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} ${payload.hostScore} - ${payload.guestScore} ${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}`
         );
         // Clear result after 3 seconds to allow next round
         setTimeout(() => {
           setResult(null);
-          setStatusMessage('Ready for next round. Make your choice!');
+          setStatusMessage('Ready for next round. Both players choose!');
         }, 3000);
       }
       refreshGameDetails();
@@ -173,9 +166,9 @@ const MatchingPennies = () => {
     );
   }
 
-  const roleDescription = playerRole === 'chooser' 
-    ? 'You choose heads or tails. Your opponent will guess your choice.'
-    : 'Your opponent chooses heads or tails. You guess what they chose.';
+  const roleDescription = isHost
+    ? 'You choose heads or tails. If your opponent chooses the same, you win!'
+    : 'You choose heads or tails. If you choose differently from your opponent, you win!';
 
   return (
     <section className="glass-panel space-y-6 p-6 text-white">
@@ -195,7 +188,7 @@ const MatchingPennies = () => {
         <div className="mt-4 flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-6 py-4">
           <div className="text-center">
             <p className="text-xs uppercase tracking-[0.4em] text-white/50">
-              {currentGame?.host?.username || 'Host'}
+              {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'}
             </p>
             <p className={`text-3xl font-bold ${scores.host >= 10 ? 'text-aurora' : 'text-white'}`}>
               {scores.host}
@@ -207,7 +200,7 @@ const MatchingPennies = () => {
           </div>
           <div className="text-center">
             <p className="text-xs uppercase tracking-[0.4em] text-white/50">
-              {currentGame?.guest?.username || 'Guest'}
+              {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
             </p>
             <p className={`text-3xl font-bold ${scores.guest >= 10 ? 'text-aurora' : 'text-white'}`}>
               {scores.guest}
@@ -217,7 +210,7 @@ const MatchingPennies = () => {
         <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center">
           <p className="text-xs uppercase tracking-[0.4em] text-white/50">Round {roundNumber + 1}</p>
           <p className="text-sm text-white/70 mt-1">
-            {playerRole === 'chooser' ? '🎯 You Choose' : '🔮 You Guess'}
+            🎯 Both Players Choose
           </p>
           <p className="text-xs text-white/60 mt-1">{roleDescription}</p>
         </div>
@@ -232,12 +225,12 @@ const MatchingPennies = () => {
               {lockedChoice === 'heads' ? '👑' : lockedChoice === 'tails' ? '🦅' : '🪙'}
             </p>
             <p className="text-white/60">
-              {lockedChoice ? `Locked ${lockedChoice.toUpperCase()}` : playerRole === 'chooser' ? 'Choose heads or tails' : 'Guess heads or tails'}
+              {lockedChoice ? `Locked ${lockedChoice.toUpperCase()}` : 'Choose heads or tails'}
             </p>
           </div>
           <div className="flex-1 rounded-2xl border border-white/5 bg-night/20 p-4 text-center">
             <p className="text-xs uppercase tracking-[0.4em] text-white/50">
-              {isHost ? currentGame.guest?.username || 'Challenger' : currentGame.host?.username || 'Host'}
+              {isHost ? (currentGame.guest?.studentName || currentGame.guest?.username || 'Challenger') : (currentGame.host?.studentName || currentGame.host?.username || 'Host')}
             </p>
             <p className={`text-6xl ${opponentLock ? '' : 'animate-pulse'}`}>
               {opponentLock ? '🪙' : '⌛'}
@@ -267,7 +260,7 @@ const MatchingPennies = () => {
                 {choice.label}
               </p>
               <p className="text-white/70 mt-2">
-                {playerRole === 'chooser' ? 'Choose this side' : 'Guess this side'}
+                Choose this side
               </p>
             </button>
           );
@@ -287,33 +280,33 @@ const MatchingPennies = () => {
             <>
               <p className="text-4xl font-display text-aurora mt-2">
                 {result.winner === 'host' 
-                  ? `${currentGame?.host?.username || 'Host'} Wins!` 
-                  : `${currentGame?.guest?.username || 'Guest'} Wins!`}
+                  ? `${currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} Wins!` 
+                  : `${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} Wins!`}
               </p>
               <p className="text-white/70 mt-2">
-                Final Score: {currentGame?.host?.username || 'Host'} {result.hostScore} - {result.guestScore} {currentGame?.guest?.username || 'Guest'}
+                Final Score: {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} {result.hostScore} - {result.guestScore} {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
               </p>
             </>
           ) : (
             <>
               <p className="text-3xl font-display mt-2">
                 {result.winner === 'host' 
-                  ? `${currentGame?.host?.username || 'Host'} wins this round` 
-                  : `${currentGame?.guest?.username || 'Guest'} wins this round`}
+                  ? `${currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} wins this round` 
+                  : `${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} wins this round`}
               </p>
               <p className="text-white/70 mt-2">
-                {result.chooserName} chose <span className="font-semibold">{result.chooserChoice}</span>
+                {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} chose <span className="font-semibold">{result.hostChoice}</span>
               </p>
               <p className="text-white/70">
-                {result.guesserName} guessed <span className="font-semibold">{result.guesserChoice}</span>
+                {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} chose <span className="font-semibold">{result.guestChoice}</span>
               </p>
               <p className="text-sm text-white/40 mt-2">
-                {result.guesserWon 
-                  ? `✅ Guess was correct! ${result.guesserName} wins.`
-                  : `❌ Guess was wrong! ${result.chooserName} wins.`}
+                {result.hostWon 
+                  ? `✅ Same choice! ${currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} wins.`
+                  : `❌ Different choices! ${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} wins.`}
               </p>
               <p className="text-sm text-white/40 mt-2">
-                Score: {currentGame?.host?.username || 'Host'} {result.hostScore} - {result.guestScore} {currentGame?.guest?.username || 'Guest'}
+                Score: {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} {result.hostScore} - {result.guestScore} {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
               </p>
             </>
           )}

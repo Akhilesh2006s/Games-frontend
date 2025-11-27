@@ -48,7 +48,7 @@ const UserStats = () => {
     <section className="glass-panel space-y-6 p-6 text-white">
       <header>
         <p className="text-xs uppercase tracking-[0.4em] text-white/50">Player Statistics</p>
-        <h3 className="text-2xl font-semibold">{user?.username || 'Player'}</h3>
+        <h3 className="text-2xl font-semibold">{user?.studentName || user?.username || 'Player'}</h3>
       </header>
 
       {/* Overall Stats */}

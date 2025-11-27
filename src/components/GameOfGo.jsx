@@ -669,7 +669,7 @@ const GameOfGo = () => {
               color="black"
               timeInfo={timeInfo.black}
               isActive={currentTurn === 'black' && gamePhase === 'PLAY'}
-              playerName={currentGame?.host?.username || 'Host'}
+              playerName={currentGame?.host?.studentName || currentGame?.host?.username || 'Host'}
             />
             <p className="text-lg font-bold text-white mt-2">
               Captured: {capturedWhite}
@@ -689,7 +689,7 @@ const GameOfGo = () => {
               color="white"
               timeInfo={timeInfo.white}
               isActive={currentTurn === 'white' && gamePhase === 'PLAY'}
-              playerName={currentGame?.guest?.username || 'Guest'}
+              playerName={currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
             />
             <p className="text-lg font-bold text-white mt-2">
               Captured: {capturedBlack}
@@ -753,8 +753,8 @@ const GameOfGo = () => {
               <p className="text-lg font-semibold text-white/80 mb-2">Winner:</p>
               <p className="text-3xl font-bold text-aurora">
                 {finalScore.winner === 'black' 
-                  ? `${currentGame?.host?.username || 'Black'} (Black)`
-                  : `${currentGame?.guest?.username || 'White'} (White)`
+                  ? `${currentGame?.host?.studentName || currentGame?.host?.username || 'Black'} (Black)`
+                  : `${currentGame?.guest?.studentName || currentGame?.guest?.username || 'White'} (White)`
                 }
               </p>
               {finalScore.winner === null && (
