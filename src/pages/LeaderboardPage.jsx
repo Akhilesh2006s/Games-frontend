@@ -109,11 +109,15 @@ const LeaderboardPage = () => {
             className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-white focus:border-aurora focus:outline-none"
           >
             <option value="">All {leaderboardType === 'group' ? 'Groups' : leaderboardType === 'classroom' ? 'Classrooms' : 'Teams'}</option>
-            {(leaderboardType === 'group' ? filters.groups : leaderboardType === 'classroom' ? filters.classrooms : filters.teams).map((filter) => (
-              <option key={filter} value={filter}>
-                {filter}
-              </option>
-            ))}
+            {(leaderboardType === 'group' ? filters.groups : leaderboardType === 'classroom' ? filters.classrooms : filters.teams).length > 0 ? (
+              (leaderboardType === 'group' ? filters.groups : leaderboardType === 'classroom' ? filters.classrooms : filters.teams).map((filter) => (
+                <option key={filter} value={filter}>
+                  {leaderboardType === 'group' ? `Group ${filter}` : filter}
+                </option>
+              ))
+            ) : (
+              <option value="" disabled>No {leaderboardType === 'group' ? 'groups' : leaderboardType === 'classroom' ? 'classrooms' : 'teams'} available</option>
+            )}
           </select>
         </div>
       )}

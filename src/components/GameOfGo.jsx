@@ -109,8 +109,10 @@ const GameOfGo = () => {
           };
           
           setTimeInfo({ black: blackTime, white: whiteTime });
-          // Initialize last tick time
+          // Initialize last tick time and server update time
           lastTickRef.current = Date.now();
+          lastServerUpdateRef.current = Date.now();
+          serverTimeInfoRef.current = { black: blackTime, white: whiteTime };
         }
       }
     } catch (err) {
@@ -329,10 +331,12 @@ const GameOfGo = () => {
         setLastMove(payload.lastMove);
       }
       if (payload.timeInfo) {
-        // Server sends current remaining time - use it directly
+        // Server sends current remaining time - use it directly as source of truth
         setTimeInfo(payload.timeInfo);
-        // Reset last tick time so timer continues smoothly
+        // Reset last tick time and server update time so timer continues smoothly
         lastTickRef.current = Date.now();
+        lastServerUpdateRef.current = Date.now();
+        serverTimeInfoRef.current = payload.timeInfo;
       }
       if (payload.message) {
         setStatusMessage(payload.message);
@@ -370,10 +374,12 @@ const GameOfGo = () => {
         setGamePhase(payload.phase);
       }
       if (payload.timeInfo) {
-        // Server sends current remaining time - use it directly
+        // Server sends current remaining time - use it directly as source of truth
         setTimeInfo(payload.timeInfo);
-        // Reset last tick time so timer continues smoothly
+        // Reset last tick time and server update time so timer continues smoothly
         lastTickRef.current = Date.now();
+        lastServerUpdateRef.current = Date.now();
+        serverTimeInfoRef.current = payload.timeInfo;
       }
       if (payload.message) {
         setStatusMessage(payload.message);
@@ -386,10 +392,12 @@ const GameOfGo = () => {
 
     const handleTimeUpdate = (payload) => {
       if (payload.timeInfo) {
-        // Server sends current remaining time - use it directly
+        // Server sends current remaining time - use it directly as source of truth
         setTimeInfo(payload.timeInfo);
-        // Reset last tick time so timer continues smoothly
+        // Reset last tick time and server update time so timer continues smoothly
         lastTickRef.current = Date.now();
+        lastServerUpdateRef.current = Date.now();
+        serverTimeInfoRef.current = payload.timeInfo;
       }
     };
 
@@ -416,6 +424,12 @@ const GameOfGo = () => {
     socket.on('game:joined', handleJoined);
     socket.on('game:peer_joined', handlePeerJoined);
     socket.on('game:guest_joined', handleGuestJoined);
+    socket.on('game:started', (payload) => {
+      if (payload.game) {
+        setCurrentGame(payload.game);
+        refreshGameDetails();
+      }
+    });
     socket.on('game:error', handleError);
 
     return () => {
@@ -427,6 +441,7 @@ const GameOfGo = () => {
       socket.off('game:joined', handleJoined);
       socket.off('game:peer_joined', handlePeerJoined);
       socket.off('game:guest_joined', handleGuestJoined);
+      socket.off('game:started');
       socket.off('game:error', handleError);
     };
   }, [currentGame?.guest, refreshGameDetails, setStatusMessage, socket, myColor]);
@@ -540,6 +555,16 @@ const GameOfGo = () => {
   // Client-side timer for smooth countdown (only for display, server is source of truth)
   const lastTickRef = useRef(Date.now());
   const intervalRef = useRef(null);
+  const lastServerUpdateRef = useRef(Date.now());
+  const serverTimeInfoRef = useRef(null);
+
+  // Store server time info when received
+  useEffect(() => {
+    if (timeInfo.black || timeInfo.white) {
+      serverTimeInfoRef.current = timeInfo;
+      lastServerUpdateRef.current = Date.now();
+    }
+  }, [timeInfo]);
 
   // Start/stop timer based on game phase
   useEffect(() => {
@@ -561,6 +586,14 @@ const GameOfGo = () => {
 
         // Only update if elapsed is reasonable (prevents huge jumps)
         if (elapsed > 1.5) {
+          return;
+        }
+
+        // Check if we've received a server update recently (within last 2 seconds)
+        // If not, don't count down (wait for server update)
+        const timeSinceServerUpdate = (now - lastServerUpdateRef.current) / 1000;
+        if (timeSinceServerUpdate > 2) {
+          // No recent server update, don't count down
           return;
         }
 
@@ -613,7 +646,7 @@ const GameOfGo = () => {
         intervalRef.current = null;
       }
     };
-  }, [currentTurn, gamePhase]);
+  }, [currentTurn, gamePhase, timeInfo]);
 
   // PlayerClock Component
   const PlayerClock = ({ color, timeInfo, isActive, playerName }) => {

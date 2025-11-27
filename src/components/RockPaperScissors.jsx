@@ -56,20 +56,20 @@ const RockPaperScissors = () => {
   const yourHandDisplay = useMemo(() => {
     if (result) {
       const resolvedMove = isHost ? result.hostMove : result.guestMove;
-      return handMap[resolvedMove] || '🤜';
+      return handMap[resolvedMove] || '🎯';
     }
     if (lockedMove) return handMap[lockedMove];
-    return '🤜';
+    return '🎯';
   }, [isHost, lockedMove, result]);
 
   const opponentHandDisplay = useMemo(() => {
     if (result) {
       const rivalMove = isHost ? result.guestMove : result.hostMove;
-      return handMap[rivalMove] || '🤚';
+      return handMap[rivalMove] || '⏳';
     }
-    if (opponentLock) return '🤚';
-    if (!currentGame?.guest) return '⌛';
-    return '🤞';
+    if (opponentLock) return handMap[opponentLock] || '🔒';
+    if (!currentGame?.guest) return '⏳';
+    return '⏳';
   }, [currentGame?.guest, isHost, opponentLock, result]);
 
   useEffect(() => {
@@ -160,6 +160,14 @@ const RockPaperScissors = () => {
       refreshGameDetails();
     };
 
+    const handleGuestJoined = (payload) => {
+      if (payload.game) {
+        setCurrentGame(payload.game);
+        setStatusMessage(`${payload.guestName} is here. Ready to play Rock Paper Scissors.`);
+        refreshGameDetails();
+      }
+    };
+
     const handleError = (message) => setStatusMessage(message);
 
     socket.on('roundResult', handleResult);
@@ -167,6 +175,12 @@ const RockPaperScissors = () => {
     socket.on('game:joined', handleJoined);
     socket.on('game:peer_joined', handlePeerJoined);
     socket.on('game:guest_joined', handleGuestJoined);
+    socket.on('game:started', (payload) => {
+      if (payload.game) {
+        setCurrentGame(payload.game);
+        refreshGameDetails();
+      }
+    });
     socket.on('game:error', handleError);
 
     return () => {
@@ -175,6 +189,7 @@ const RockPaperScissors = () => {
       socket.off('game:joined', handleJoined);
       socket.off('game:peer_joined', handlePeerJoined);
       socket.off('game:guest_joined', handleGuestJoined);
+      socket.off('game:started');
       socket.off('game:error', handleError);
     };
   }, [currentGame?.guest, refreshGameDetails, setStatusMessage, socket]);

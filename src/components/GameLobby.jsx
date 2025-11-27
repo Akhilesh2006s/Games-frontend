@@ -44,10 +44,25 @@ const GameLobby = () => {
       }
     };
 
+    const handleGameStarted = (payload) => {
+      if (payload.game) {
+        setCurrentGame(payload.game);
+        const gameTypeNames = {
+          'ROCK_PAPER_SCISSORS': 'Rock Paper Scissors',
+          'GAME_OF_GO': 'Game of Go',
+          'MATCHING_PENNIES': 'Matching Pennies',
+        };
+        const gameName = gameTypeNames[payload.gameType] || payload.gameType;
+        setStatusMessage(`${gameName} started! Game is ready to play.`);
+      }
+    };
+
     socket.on('game:guest_joined', handleGuestJoined);
+    socket.on('game:started', handleGameStarted);
 
     return () => {
       socket.off('game:guest_joined', handleGuestJoined);
+      socket.off('game:started', handleGameStarted);
     };
   }, [socket, currentGame, setCurrentGame, setStatusMessage, refreshMatches]);
 
