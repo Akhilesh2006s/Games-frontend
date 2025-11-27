@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import useGameStore from '../store/useGameStore';
 import useAuthStore from '../store/useAuthStore';
+import useSocket from '../hooks/useSocket';
 import GameSelector from './GameSelector';
 
 const GameLobby = () => {
@@ -11,6 +12,12 @@ const GameLobby = () => {
   const navigate = useNavigate();
   const [joinCode, setJoinCode] = useState('');
   const [loading, setLoading] = useState({ create: false, join: false });
+  
+  // Socket connection for real-time updates
+  const { socket } = useSocket({
+    enabled: Boolean(currentGame?.code),
+    roomCode: currentGame?.code,
+  });
 
   const refreshMatches = useCallback(async () => {
     try {
@@ -25,11 +32,37 @@ const GameLobby = () => {
     refreshMatches();
   }, [refreshMatches]);
 
+  // Listen for guest joined event to update game state
+  useEffect(() => {
+    if (!socket || !currentGame) return;
+
+    const handleGuestJoined = async (payload) => {
+      if (payload.game) {
+        setCurrentGame(payload.game);
+        setStatusMessage(`${payload.guestName} joined! Both players connected.`);
+        await refreshMatches();
+      }
+    };
+
+    socket.on('game:guest_joined', handleGuestJoined);
+
+    return () => {
+      socket.off('game:guest_joined', handleGuestJoined);
+    };
+  }, [socket, currentGame, setCurrentGame, setStatusMessage, refreshMatches]);
+
   const handleCreate = async () => {
     setLoading((prev) => ({ ...prev, create: true }));
     try {
       const { data } = await api.post('/games/create');
-      setCurrentGame(data.game);
+      // Ensure host is populated
+      if (data.game && !data.game.host) {
+        // If host is missing, fetch the game again
+        const { data: gameData } = await api.get(`/games/code/${data.game.code}`);
+        setCurrentGame(gameData.game);
+      } else {
+        setCurrentGame(data.game);
+      }
       setStatusMessage('Share the code with your challenger to unlock the Go grid.');
       setJoinCode('');
       await refreshMatches();
@@ -46,7 +79,14 @@ const GameLobby = () => {
     setLoading((prev) => ({ ...prev, join: true }));
     try {
       const { data } = await api.post('/games/join', { code: joinCode.trim().toUpperCase() });
-      setCurrentGame(data.game);
+      // Ensure both host and guest are populated
+      if (data.game && (!data.game.host || !data.game.guest)) {
+        // If host or guest is missing, fetch the game again
+        const { data: gameData } = await api.get(`/games/code/${data.game.code}`);
+        setCurrentGame(gameData.game);
+      } else {
+        setCurrentGame(data.game);
+      }
       setStatusMessage('Both players connected! Choose a game to play.');
       setJoinCode('');
       await refreshMatches();
