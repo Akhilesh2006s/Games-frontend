@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import useGameStore from '../store/useGameStore';
 import useAuthStore from '../store/useAuthStore';
@@ -7,6 +8,7 @@ import GameSelector from './GameSelector';
 const GameLobby = () => {
   const { currentGame, setCurrentGame, matches, setMatches, statusMessage, setStatusMessage } = useGameStore();
   const user = useAuthStore((state) => state.user);
+  const navigate = useNavigate();
   const [joinCode, setJoinCode] = useState('');
   const [loading, setLoading] = useState({ create: false, join: false });
 
@@ -82,15 +84,12 @@ const GameLobby = () => {
           </div>
         </div>
         {currentGame && (
-          <div className="mt-6 space-y-4">
+          <div className="mt-6">
             <div className="rounded-3xl border border-white/10 bg-gradient-to-r from-royal/30 to-pulse/20 p-6 text-center">
               <p className="text-sm uppercase tracking-[0.5em] text-white/60">Arena Code</p>
               <p className="text-5xl font-display font-semibold tracking-[0.3em]">{currentGame.code}</p>
               <p className="mt-3 text-white/70">{statusMessage || 'Waiting for opponent...'}</p>
             </div>
-            {currentGame.guest && (
-              <GameSelector currentGame={currentGame} />
-            )}
           </div>
         )}
       </div>
@@ -109,13 +108,21 @@ const GameLobby = () => {
           {matches.length === 0 && <p className="text-white/50">No matches yet. Create one to seed the archive.</p>}
           {matches.map((match) => (
             <div key={match._id} className="flex flex-wrap items-center justify-between rounded-2xl border border-white/5 bg-white/5 px-4 py-3">
-              <div>
+              <div className="flex-1">
                 <p className="text-sm uppercase tracking-[0.4em] text-white/40">{match.status}</p>
                 <p className="text-lg font-semibold">
                   {match.host?.studentName || match.host?.username || 'Host'} vs {match.guest?.studentName || match.guest?.username || '???'}
                 </p>
+                <p className="text-3xl font-display tracking-[0.3em] text-white/70 mt-1">{match.code}</p>
               </div>
-              <p className="text-3xl font-display tracking-[0.3em] text-white/70">{match.code}</p>
+              {match.status === 'COMPLETE' && (
+                <button
+                  onClick={() => navigate(`/analysis/${match.code}`)}
+                  className="ml-4 rounded-lg border border-aurora/50 bg-aurora/10 px-4 py-2 text-sm text-aurora hover:bg-aurora/20 transition"
+                >
+                  View Analysis
+                </button>
+              )}
             </div>
           ))}
         </div>

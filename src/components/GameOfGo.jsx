@@ -353,6 +353,14 @@ const GameOfGo = () => {
       refreshGameDetails();
     };
 
+    const handleGuestJoined = (payload) => {
+      if (payload.game) {
+        setCurrentGame(payload.game);
+      }
+      setStatusMessage(`${payload.guestName} is here. Ready to play Game of Go.`);
+      refreshGameDetails();
+    };
+
     const handlePass = (payload) => {
       if (payload.currentTurn) {
         setCurrentTurn(payload.currentTurn);
@@ -407,6 +415,7 @@ const GameOfGo = () => {
     socket.on('goScoreFinalized', handleScoreFinalized);
     socket.on('game:joined', handleJoined);
     socket.on('game:peer_joined', handlePeerJoined);
+    socket.on('game:guest_joined', handleGuestJoined);
     socket.on('game:error', handleError);
 
     return () => {
@@ -417,6 +426,7 @@ const GameOfGo = () => {
       socket.off('goScoreFinalized', handleScoreFinalized);
       socket.off('game:joined', handleJoined);
       socket.off('game:peer_joined', handlePeerJoined);
+      socket.off('game:guest_joined', handleGuestJoined);
       socket.off('game:error', handleError);
     };
   }, [currentGame?.guest, refreshGameDetails, setStatusMessage, socket, myColor]);

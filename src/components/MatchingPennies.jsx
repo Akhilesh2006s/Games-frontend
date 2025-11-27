@@ -125,12 +125,21 @@ const MatchingPennies = () => {
       refreshGameDetails();
     };
 
+    const handleGuestJoined = (payload) => {
+      if (payload.game) {
+        setCurrentGame(payload.game);
+      }
+      setOpponentStatus(`${payload.guestName} joined your arena.`);
+      setStatusMessage(`${payload.guestName} is here. Ready to play Matching Pennies.`);
+    };
+
     const handleError = (message) => setStatusMessage(message);
 
     socket.on('penniesResult', handleResult);
     socket.on('penniesOpponentLocked', handleOpponentLock);
     socket.on('game:joined', handleJoined);
     socket.on('game:peer_joined', handlePeerJoined);
+    socket.on('game:guest_joined', handleGuestJoined);
     socket.on('game:error', handleError);
 
     return () => {
@@ -138,6 +147,7 @@ const MatchingPennies = () => {
       socket.off('penniesOpponentLocked', handleOpponentLock);
       socket.off('game:joined', handleJoined);
       socket.off('game:peer_joined', handlePeerJoined);
+      socket.off('game:guest_joined', handleGuestJoined);
       socket.off('game:error', handleError);
     };
   }, [currentGame?.guest, refreshGameDetails, setStatusMessage, socket, isHost, currentGame]);

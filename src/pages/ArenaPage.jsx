@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import GameLobby from '../components/GameLobby';
+import GameSelector from '../components/GameSelector';
 import RockPaperScissors from '../components/RockPaperScissors';
 import MatchingPennies from '../components/MatchingPennies';
 import GameOfGo from '../components/GameOfGo';
@@ -35,6 +36,18 @@ const ArenaPage = () => {
             {showStats ? 'Hide Stats' : 'View Stats'}
           </button>
           <button
+            onClick={() => navigate('/history')}
+            className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition"
+          >
+            History
+          </button>
+          <button
+            onClick={() => navigate('/leaderboard')}
+            className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition"
+          >
+            Leaderboard
+          </button>
+          <button
             onClick={() => navigate('/settings')}
             className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition"
           >
@@ -50,9 +63,11 @@ const ArenaPage = () => {
       </header>
 
       {showStats ? (
-        <div className="grid gap-8 lg:grid-cols-2">
-          <UserStats />
-          <div className="glass-panel p-6 text-center text-white/70">
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-3">
+            <UserStats />
+          </div>
+          <div className="lg:col-span-3 glass-panel p-6 text-center text-white/70">
             <p className="text-lg">Your game statistics and performance metrics</p>
             <button
               onClick={() => setShowStats(false)}
@@ -63,42 +78,91 @@ const ArenaPage = () => {
           </div>
         </div>
       ) : (
-        <div className="grid gap-8 lg:grid-cols-2">
-          <GameLobby />
-          {currentGame?.activeStage === 'MATCHING_PENNIES' ? (
-            <MatchingPennies />
-          ) : currentGame?.activeStage === 'GAME_OF_GO' ? (
-            <GameOfGo />
-          ) : currentGame?.activeStage === 'ROCK_PAPER_SCISSORS' ? (
-            <RockPaperScissors />
-          ) : currentGame?.guest ? (
-            <div className="glass-panel p-6 text-center text-white/70">
-              <p className="text-lg">Choose a game from the lobby to begin!</p>
-            </div>
-          ) : (
-            <RockPaperScissors />
-          )}
-        </div>
-      )}
+        <>
+          {/* Row 1: Game Lobby - Compact */}
+          <div className="mb-6">
+            <GameLobby />
+          </div>
 
-      <section className="mt-10 grid gap-4 lg:grid-cols-2">
-        <div className="glass-panel p-6 text-white">
-          <p className="text-xs uppercase tracking-[0.4em] text-white/50">Stage 02</p>
-          <h3 className="text-2xl font-semibold">Game of Go • Strategic Nebula</h3>
-          <p className="text-white/60">
-            After Stage 01 resolves, the Go board lights up. We stage a 9x9 grid with fog-of-war preview and timeline
-            replays. Coming online right after both players sync their RPS decisions.
-          </p>
-        </div>
-        <div className="glass-panel p-6 text-white">
-          <p className="text-xs uppercase tracking-[0.4em] text-white/50">Stage 03</p>
-          <h3 className="text-2xl font-semibold">Matching Pennies • Finale</h3>
-          <p className="text-white/60">
-            Sudden-death psychology where equilibrium matters. This placeholder outlines the UI tier that will wrap the
-            trilogy and crown the Ceteris-Paribus champion.
-          </p>
-        </div>
-      </section>
+          {/* Row 2: Three Game Selector Boxes - Always Visible in 3 Columns */}
+          <div className="mb-6">
+            {currentGame?.guest ? (
+              <GameSelector currentGame={currentGame} />
+            ) : (
+              <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
+                <div className="glass-panel p-6 text-white border-2 border-white/10">
+                  <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-pulse/30 to-royal/30 text-3xl">
+                    ✊
+                  </div>
+                  <div className="mb-3">
+                    <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white/80">
+                      Stage 01
+                    </span>
+                  </div>
+                  <h3 className="mb-2 text-xl font-bold text-white">Rock • Paper • Scissors</h3>
+                  <p className="mb-4 text-sm leading-relaxed text-white/70">
+                    Classic hand game. Choose rock, paper, or scissors. First to 10 points wins.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">✊ Rock</span>
+                    <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">✋ Paper</span>
+                    <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">✌️ Scissors</span>
+                  </div>
+                </div>
+                <div className="glass-panel p-6 text-white border-2 border-white/10">
+                  <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-royal/30 to-aurora/30 text-3xl">
+                    ⚫
+                  </div>
+                  <div className="mb-3">
+                    <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white/80">
+                      Stage 02
+                    </span>
+                  </div>
+                  <h3 className="mb-2 text-xl font-bold text-white">Game of Go</h3>
+                  <p className="mb-4 text-sm leading-relaxed text-white/70">
+                    Strategic board game. Place stones to surround territory and capture opponent stones.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">⚫ Black</span>
+                    <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">⚪ White</span>
+                  </div>
+                </div>
+                <div className="glass-panel p-6 text-white border-2 border-white/10">
+                  <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-aurora/30 to-pulse/30 text-3xl">
+                    🪙
+                  </div>
+                  <div className="mb-3">
+                    <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white/80">
+                      Stage 03
+                    </span>
+                  </div>
+                  <h3 className="mb-2 text-xl font-bold text-white">Matching Pennies</h3>
+                  <p className="mb-4 text-sm leading-relaxed text-white/70">
+                    Psychology game. One chooses, one guesses. If guess matches, guesser wins. First to 10 points wins.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">👑 Heads</span>
+                    <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">🦅 Tails</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Row 3: Active Game Display - Full Width */}
+          {currentGame?.activeStage && (
+            <div className="mb-6">
+              {currentGame.activeStage === 'ROCK_PAPER_SCISSORS' ? (
+                <RockPaperScissors />
+              ) : currentGame.activeStage === 'GAME_OF_GO' ? (
+                <GameOfGo />
+              ) : currentGame.activeStage === 'MATCHING_PENNIES' ? (
+                <MatchingPennies />
+              ) : null}
+            </div>
+          )}
+        </>
+      )}
     </main>
   );
 };

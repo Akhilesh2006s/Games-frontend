@@ -141,8 +141,8 @@ const GameSelector = ({ currentGame, onGameSelected }) => {
         </p>
       </div>
 
-      {/* Game Cards Grid */}
-      <div className="relative grid gap-6 md:grid-cols-3">
+      {/* Game Cards Grid - Always 3 columns */}
+      <div className="relative grid gap-6 grid-cols-1 md:grid-cols-3">
         {games.map((game) => {
           const isActive = currentGame?.activeStage === game.id;
           const isLoading = loading[game.loadingKey];

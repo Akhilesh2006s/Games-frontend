@@ -166,6 +166,7 @@ const RockPaperScissors = () => {
     socket.on('opponentLocked', handleOpponentLock);
     socket.on('game:joined', handleJoined);
     socket.on('game:peer_joined', handlePeerJoined);
+    socket.on('game:guest_joined', handleGuestJoined);
     socket.on('game:error', handleError);
 
     return () => {
@@ -173,6 +174,7 @@ const RockPaperScissors = () => {
       socket.off('opponentLocked', handleOpponentLock);
       socket.off('game:joined', handleJoined);
       socket.off('game:peer_joined', handlePeerJoined);
+      socket.off('game:guest_joined', handleGuestJoined);
       socket.off('game:error', handleError);
     };
   }, [currentGame?.guest, refreshGameDetails, setStatusMessage, socket]);
