@@ -46,6 +46,34 @@ const AdminDashboard = () => {
     if (location.state?.filter) {
       setGameFilter(location.state.filter);
     }
+    // Restore selected student if coming back from student stats
+    if (location.state?.tab === 'student' && location.state?.studentEmail) {
+      // Fetch the student stats again to restore the view
+      const restoreStudentStats = async () => {
+        try {
+          setLoading(true);
+          setError('');
+          const { data } = await api.get(`/admin/student/${encodeURIComponent(location.state.studentEmail)}`);
+          if (data && data.user) {
+            setStudentStats(data);
+            setSelectedStudent(data.user.email);
+          } else {
+            setError('Student not found');
+          }
+        } catch (err) {
+          console.error('Error restoring student stats:', err);
+          setError(err.response?.data?.message || 'Failed to load student stats');
+          setStudentStats(null);
+          setSelectedStudent(null);
+        } finally {
+          setLoading(false);
+        }
+      };
+      // Only restore if we don't already have the student stats loaded or if it's a different student
+      if (!studentStats || studentStats.user?.email !== location.state.studentEmail) {
+        restoreStudentStats();
+      }
+    }
   }, [location.state]);
 
   // Fetch leaderboard
@@ -744,9 +772,8 @@ const AdminDashboard = () => {
                                 onClick={() => navigate(`/analysis/${game.code}`, {
                                   state: {
                                     from: 'admin',
-                                    tab: 'games',
-                                    search: gameSearch,
-                                    filter: gameFilter
+                                    tab: 'student',
+                                    studentEmail: studentStats?.user?.email
                                   }
                                 })}
                                 className="mt-2 text-xs text-aurora hover:text-aurora/70"

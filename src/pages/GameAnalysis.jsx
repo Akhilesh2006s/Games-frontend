@@ -87,25 +87,197 @@ const GameAnalysis = () => {
           <p className="text-xs uppercase tracking-[0.6em] text-white/40">Game Analysis</p>
           <h1 className="text-3xl font-display font-semibold">Match Report: {analysis.gameCode}</h1>
         </div>
-        <button 
-          onClick={() => {
-            // Check if we came from admin dashboard
-            if (location.state?.from === 'admin') {
-              navigate('/admin', {
-                state: {
-                  tab: location.state.tab || 'games',
-                  search: location.state.search || '',
-                  filter: location.state.filter || 'all'
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => {
+              // Create comprehensive CSV
+              const csvRows = [];
+              
+              // Game Information Section
+              csvRows.push('=== GAME INFORMATION ===');
+              csvRows.push('Game Code,' + analysis.gameCode);
+              csvRows.push('Status,' + analysis.status);
+              csvRows.push('Active Stage,' + getGameTypeName(analysis.activeStage));
+              csvRows.push('Started,' + formatDate(analysis.createdAt));
+              csvRows.push('Completed,' + (analysis.completedAt ? formatDate(analysis.completedAt) : 'N/A'));
+              csvRows.push('');
+              
+              // Players Section
+              csvRows.push('=== PLAYERS ===');
+              csvRows.push('Host Name,' + analysis.host.name);
+              csvRows.push('Host Email,' + analysis.host.email);
+              csvRows.push('Guest Name,' + (analysis.guest?.name || 'N/A'));
+              csvRows.push('Guest Email,' + (analysis.guest?.email || 'N/A'));
+              csvRows.push('');
+              
+              // Final Scores Section
+              csvRows.push('=== FINAL SCORES ===');
+              if (analysis.scores.rps.host > 0 || analysis.scores.rps.guest > 0) {
+                csvRows.push('Rock Paper Scissors,' + analysis.host.name + ',' + analysis.scores.rps.host + ',' + analysis.guest?.name + ',' + analysis.scores.rps.guest);
+              }
+              if (analysis.scores.pennies.host > 0 || analysis.scores.pennies.guest > 0) {
+                csvRows.push('Matching Pennies,' + analysis.host.name + ',' + analysis.scores.pennies.host + ',' + analysis.guest?.name + ',' + analysis.scores.pennies.guest);
+              }
+              if (analysis.scores.go) {
+                csvRows.push('Game of Go,Black (Host),' + (analysis.scores.go.black?.score || 0) + ',White (Guest),' + (analysis.scores.go.white?.score || 0));
+                csvRows.push('Game of Go Winner,' + (analysis.scores.go.winner === 'black' ? analysis.host.name : analysis.guest?.name || 'N/A'));
+              }
+              csvRows.push('');
+              
+              // Detailed Statistics
+              if (analysis.rpsData) {
+                csvRows.push('=== ROCK PAPER SCISSORS DETAILS ===');
+                csvRows.push('Total Rounds,' + analysis.rpsData.totalRounds);
+                csvRows.push('Host Wins,' + analysis.rpsData.hostWins);
+                csvRows.push('Guest Wins,' + analysis.rpsData.guestWins);
+                csvRows.push('Draws,' + analysis.rpsData.draws);
+                csvRows.push('Host Score,' + analysis.rpsData.hostScore);
+                csvRows.push('Guest Score,' + analysis.rpsData.guestScore);
+                csvRows.push('Host Rock Choices,' + (analysis.rpsData.hostChoices.rock || 0));
+                csvRows.push('Host Paper Choices,' + (analysis.rpsData.hostChoices.paper || 0));
+                csvRows.push('Host Scissors Choices,' + (analysis.rpsData.hostChoices.scissors || 0));
+                csvRows.push('Guest Rock Choices,' + (analysis.rpsData.guestChoices.rock || 0));
+                csvRows.push('Guest Paper Choices,' + (analysis.rpsData.guestChoices.paper || 0));
+                csvRows.push('Guest Scissors Choices,' + (analysis.rpsData.guestChoices.scissors || 0));
+                csvRows.push('Winner,' + (analysis.rpsData.winner === 'host' ? analysis.host.name : analysis.guest?.name || 'N/A'));
+                csvRows.push('');
+              }
+              
+              if (analysis.penniesData) {
+                csvRows.push('=== MATCHING PENNIES DETAILS ===');
+                csvRows.push('Total Rounds,' + analysis.penniesData.totalRounds);
+                csvRows.push('Host Wins,' + analysis.penniesData.hostWins);
+                csvRows.push('Guest Wins,' + analysis.penniesData.guestWins);
+                csvRows.push('Draws,' + analysis.penniesData.draws);
+                csvRows.push('Host Score,' + analysis.penniesData.hostScore);
+                csvRows.push('Guest Score,' + analysis.penniesData.guestScore);
+                csvRows.push('Host Heads Choices,' + (analysis.penniesData.hostChoices.heads || 0));
+                csvRows.push('Host Tails Choices,' + (analysis.penniesData.hostChoices.tails || 0));
+                csvRows.push('Guest Heads Choices,' + (analysis.penniesData.guestChoices.heads || 0));
+                csvRows.push('Guest Tails Choices,' + (analysis.penniesData.guestChoices.tails || 0));
+                csvRows.push('Winner,' + (analysis.penniesData.winner === 'host' ? analysis.host.name : analysis.guest?.name || 'N/A'));
+                csvRows.push('');
+              }
+              
+              if (analysis.goData) {
+                csvRows.push('=== GAME OF GO DETAILS ===');
+                csvRows.push('Board Size,' + analysis.goData.boardSize + 'x' + analysis.goData.boardSize);
+                csvRows.push('Komi,' + analysis.goData.komi);
+                csvRows.push('Captured Black,' + analysis.goData.capturedBlack);
+                csvRows.push('Captured White,' + analysis.goData.capturedWhite);
+                csvRows.push('Total Moves,' + analysis.goData.totalMoves);
+                if (analysis.goData.finalScore) {
+                  csvRows.push('Black Score,' + (analysis.goData.finalScore.black?.score || 0));
+                  csvRows.push('White Score,' + (analysis.goData.finalScore.white?.score || 0));
+                  csvRows.push('Black Stones,' + (analysis.goData.finalScore.black?.stones || 0));
+                  csvRows.push('Black Territory,' + (analysis.goData.finalScore.black?.territory || 0));
+                  csvRows.push('White Stones,' + (analysis.goData.finalScore.white?.stones || 0));
+                  csvRows.push('White Territory,' + (analysis.goData.finalScore.white?.territory || 0));
+                  csvRows.push('Winner,' + (analysis.goData.finalScore.winner === 'black' ? analysis.host.name : analysis.guest?.name || 'N/A'));
                 }
+                csvRows.push('');
+              }
+              
+              // All Moves Section
+              csvRows.push('=== ALL MOVES ===');
+              csvRows.push('Move Number,Game Type,Round Number,Player,Choice,Position,Timestamp,Winner,Summary');
+              
+              allRounds.forEach((round, idx) => {
+                const moveNum = idx + 1;
+                const roundNum = round.roundNumber || idx + 1;
+                round.moves.forEach((move, moveIdx) => {
+                  const row = [
+                    moveNum,
+                    getGameTypeName(round.gameType),
+                    roundNum,
+                    move.player?.name || 'Unknown',
+                    getChoiceDisplay(move.choice, move),
+                    move.row !== undefined && move.col !== undefined ? `(${move.row + 1},${move.col + 1})` : 'N/A',
+                    formatDate(round.timestamp),
+                    moveIdx === round.moves.length - 1 && round.winner ? round.winner.name : '',
+                    round.summary || ''
+                  ];
+                  csvRows.push(row.map(cell => {
+                    const cellStr = String(cell || '');
+                    if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+                      return `"${cellStr.replace(/"/g, '""')}"`;
+                    }
+                    return cellStr;
+                  }).join(','));
+                });
               });
-            } else {
-              navigate('/arena');
-            }
-          }} 
-          className="btn-ghost"
-        >
-          {location.state?.from === 'admin' ? 'Back to Admin' : 'Back to Arena'}
-        </button>
+              
+              csvRows.push('');
+              
+              // Highlights Section
+              if (analysis.highlights && analysis.highlights.length > 0) {
+                csvRows.push('=== HIGHLIGHTS ===');
+                csvRows.push('Type,Game Type,Round/Move,Player,Details');
+                analysis.highlights.forEach(highlight => {
+                  const roundNum = highlight.round || highlight.move || 'N/A';
+                  const row = [
+                    highlight.type,
+                    getGameTypeName(highlight.gameType),
+                    roundNum,
+                    highlight.player || highlight.winner || 'N/A',
+                    highlight.summary || highlight.position || highlight.captured ? `Captured: ${highlight.captured}` : ''
+                  ];
+                  csvRows.push(row.map(cell => {
+                    const cellStr = String(cell || '');
+                    if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+                      return `"${cellStr.replace(/"/g, '""')}"`;
+                    }
+                    return cellStr;
+                  }).join(','));
+                });
+              }
+              
+              // Download CSV
+              const csvContent = csvRows.join('\n');
+              const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+              const link = document.createElement('a');
+              const url = URL.createObjectURL(blob);
+              
+              link.setAttribute('href', url);
+              link.setAttribute('download', `game_analysis_${analysis.gameCode}_${new Date().toISOString().split('T')[0]}.csv`);
+              link.style.visibility = 'hidden';
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            }}
+            className="rounded-lg border border-green-500/50 bg-green-500/10 px-4 py-2 text-sm font-semibold text-green-400 hover:bg-green-500/20 transition"
+          >
+            📥 Download CSV
+          </button>
+          <button 
+            onClick={() => {
+              // Check if we came from admin dashboard
+              if (location.state?.from === 'admin') {
+                const navState = {
+                  tab: location.state.tab || 'games',
+                };
+                
+                // If coming from student stats, include studentEmail
+                if (location.state.tab === 'student' && location.state.studentEmail) {
+                  navState.studentEmail = location.state.studentEmail;
+                }
+                
+                // If coming from games tab, include search and filter
+                if (location.state.tab === 'games') {
+                  navState.search = location.state.search || '';
+                  navState.filter = location.state.filter || 'all';
+                }
+                
+                navigate('/admin', { state: navState });
+              } else {
+                navigate('/arena');
+              }
+            }} 
+            className="btn-ghost"
+          >
+            {location.state?.from === 'admin' ? 'Back to Admin' : 'Back to Arena'}
+          </button>
+        </div>
       </header>
 
       {/* Tabs - Always Visible */}

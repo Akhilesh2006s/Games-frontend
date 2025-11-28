@@ -116,14 +116,16 @@ const GameLobby = () => {
   const getTimeBasedGreeting = () => {
     // Get current time in IST (UTC+5:30)
     const now = new Date();
-    const utcTime = now.getTime() + (now.getTimezoneOffset() * 60 * 1000); // Convert to UTC
-    const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
-    const istTime = new Date(utcTime + istOffset);
-    const hours = istTime.getHours();
+    const utcHours = now.getUTCHours();
+    const utcMinutes = now.getUTCMinutes();
     
-    if (hours >= 5 && hours < 12) {
+    // Convert to IST: UTC + 5 hours 30 minutes
+    const istTotalMinutes = (utcHours * 60 + utcMinutes) + (5 * 60 + 30);
+    const istHours = Math.floor(istTotalMinutes / 60) % 24;
+    
+    if (istHours >= 5 && istHours < 12) {
       return 'Good morning';
-    } else if (hours >= 12 && hours < 18) {
+    } else if (istHours >= 12 && istHours < 18) {
       return 'Good afternoon';
     } else {
       return 'Good evening';
