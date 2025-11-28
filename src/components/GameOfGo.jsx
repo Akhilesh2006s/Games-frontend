@@ -538,6 +538,9 @@ const GameOfGo = () => {
       return;
     }
 
+    const confirmEnd = window.confirm('Are you sure you want to end the game? The winner will be determined by current score.');
+    if (!confirmEnd) return;
+
     // Force end game by calculating score immediately
     socket.emit('finalizeGoScore', { 
       code: currentGame.code, 
@@ -708,6 +711,10 @@ const GameOfGo = () => {
         </div>
         <div className="mt-4 flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-6 py-4">
           <div className="flex-1">
+            <p className="text-xs uppercase tracking-wide text-white/50 mb-1">⚫ Black</p>
+            <p className="text-sm font-semibold text-white mb-2">
+              {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'}
+            </p>
             <PlayerClock
               color="black"
               timeInfo={timeInfo.black}
@@ -728,6 +735,10 @@ const GameOfGo = () => {
             </p>
           </div>
           <div className="flex-1">
+            <p className="text-xs uppercase tracking-wide text-white/50 mb-1">⚪ White</p>
+            <p className="text-sm font-semibold text-white mb-2">
+              {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
+            </p>
             <PlayerClock
               color="white"
               timeInfo={timeInfo.white}
@@ -817,14 +828,15 @@ const GameOfGo = () => {
           <p className="text-sm font-semibold">Pass</p>
           <p className="text-xs text-white/60 mt-1">Skip your turn</p>
         </button>
-        <button
-          onClick={handleEndGame}
-          disabled={!isJoined || gamePhase === 'COMPLETE'}
-          className="flex-1 rounded-2xl border border-pulse/50 bg-pulse/20 px-6 py-4 text-center transition hover:bg-pulse/30 hover:border-pulse disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <p className="text-sm font-semibold">End Game</p>
-          <p className="text-xs text-white/60 mt-1">Calculate winner</p>
-        </button>
+        {gamePhase !== 'COMPLETE' && currentGame?.guest && (
+          <button
+            onClick={handleEndGame}
+            disabled={!isJoined || gamePhase === 'COMPLETE'}
+            className="flex-1 rounded-lg border border-red-500/50 bg-red-500/10 px-6 py-3 text-sm font-semibold text-red-400 hover:bg-red-500/20 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            End Game
+          </button>
+        )}
       </div>
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4">

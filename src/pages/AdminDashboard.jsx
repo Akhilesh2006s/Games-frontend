@@ -1,12 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../services/api';
 import useAuthStore from '../store/useAuthStore';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const user = useAuthStore((state) => state.user);
-  const [activeTab, setActiveTab] = useState('leaderboard');
+  const logout = useAuthStore((state) => state.logout);
+  const [activeTab, setActiveTab] = useState(location.state?.tab || 'leaderboard');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -20,8 +22,8 @@ const AdminDashboard = () => {
 
   // Games history state
   const [games, setGames] = useState([]);
-  const [gameFilter, setGameFilter] = useState('all');
-  const [gameSearch, setGameSearch] = useState('');
+  const [gameFilter, setGameFilter] = useState(location.state?.filter || 'all');
+  const [gameSearch, setGameSearch] = useState(location.state?.search || '');
 
   // Student stats state
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -32,6 +34,19 @@ const AdminDashboard = () => {
       navigate('/');
     }
   }, [user, navigate]);
+
+  // Restore state from navigation
+  useEffect(() => {
+    if (location.state?.tab) {
+      setActiveTab(location.state.tab);
+    }
+    if (location.state?.search !== undefined) {
+      setGameSearch(location.state.search);
+    }
+    if (location.state?.filter) {
+      setGameFilter(location.state.filter);
+    }
+  }, [location.state]);
 
   // Fetch leaderboard
   useEffect(() => {
@@ -102,6 +117,55 @@ const AdminDashboard = () => {
   const formatDate = (date) => {
     if (!date) return 'N/A';
     return new Date(date).toLocaleString();
+  };
+
+  const downloadCSV = () => {
+    // Prepare CSV data
+    const headers = ['Rank', 'Name', 'Email', 'Enrollment No', 'Group', 'Classroom', 'Team', 'Wins', 'Losses', 'Draws', 'Total Points', 'RPS Wins', 'RPS Points', 'Go Wins', 'Go Points', 'Pennies Wins', 'Pennies Points'];
+    
+    const csvRows = [headers.join(',')];
+    
+    processedData.forEach((item) => {
+      const row = [
+        item.rank || '',
+        item.displayName || item.firstName || item.username || '',
+        item.email || '',
+        item.enrollmentNo || '',
+        item.groupId || '',
+        item.classroomNumber || '',
+        item.teamNumber || '',
+        item.stats?.wins || 0,
+        item.stats?.losses || 0,
+        item.stats?.draws || 0,
+        item.stats?.totalPoints || 0,
+        item.stats?.rpsWins || 0,
+        item.stats?.rpsPoints || 0,
+        item.stats?.goWins || 0,
+        item.stats?.goPoints || 0,
+        item.stats?.penniesWins || 0,
+        item.stats?.penniesPoints || 0,
+      ];
+      // Escape commas and quotes in CSV
+      csvRows.push(row.map(cell => {
+        const cellStr = String(cell || '');
+        if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+          return `"${cellStr.replace(/"/g, '""')}"`;
+        }
+        return cellStr;
+      }).join(','));
+    });
+    
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `leaderboard_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const getGameTypeName = (type) => {
@@ -289,9 +353,20 @@ const AdminDashboard = () => {
           <p className="text-xs uppercase tracking-[0.6em] text-white/40">Admin Dashboard</p>
           <h1 className="text-3xl font-display font-semibold">Administrator Panel</h1>
         </div>
-        <button onClick={() => navigate('/arena')} className="btn-ghost">
-          Back to Arena
-        </button>
+        <div className="flex items-center gap-4">
+          <button onClick={() => navigate('/arena')} className="btn-ghost">
+            Back to Arena
+          </button>
+          <button 
+            onClick={() => {
+              logout();
+              navigate('/');
+            }} 
+            className="rounded-full border border-red-500/50 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition font-semibold"
+          >
+            Logout
+          </button>
+        </div>
       </header>
 
       {/* Tabs */}
@@ -325,6 +400,15 @@ const AdminDashboard = () => {
       {activeTab === 'leaderboard' && (
         <div>
           <div className="glass-panel mb-6 p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-white">Filters & Search</h2>
+              <button
+                onClick={downloadCSV}
+                className="rounded-lg border border-green-500/50 bg-green-500/10 px-4 py-2 text-sm font-semibold text-green-400 hover:bg-green-500/20 transition"
+              >
+                📥 Download CSV
+              </button>
+            </div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <div>
                 <label className="block text-sm font-medium text-white/70 mb-2">Filter by Group</label>
@@ -494,7 +578,14 @@ const AdminDashboard = () => {
                   <div className="flex flex-col gap-2">
                     {game.status === 'COMPLETE' && (
                       <button
-                        onClick={() => navigate(`/analysis/${game.code}`)}
+                        onClick={() => navigate(`/analysis/${game.code}`, {
+                          state: {
+                            from: 'admin',
+                            tab: 'games',
+                            search: gameSearch,
+                            filter: gameFilter
+                          }
+                        })}
                         className="rounded-lg border border-aurora/50 bg-aurora/10 px-4 py-2 text-sm text-aurora hover:bg-aurora/20 transition font-semibold"
                       >
                         View Analysis
@@ -650,7 +741,14 @@ const AdminDashboard = () => {
                             <p className="text-sm text-white/70">{formatDate(game.createdAt)}</p>
                             {game.status === 'COMPLETE' && (
                               <button
-                                onClick={() => navigate(`/analysis/${game.code}`)}
+                                onClick={() => navigate(`/analysis/${game.code}`, {
+                                  state: {
+                                    from: 'admin',
+                                    tab: 'games',
+                                    search: gameSearch,
+                                    filter: gameFilter
+                                  }
+                                })}
                                 className="mt-2 text-xs text-aurora hover:text-aurora/70"
                               >
                                 View Analysis

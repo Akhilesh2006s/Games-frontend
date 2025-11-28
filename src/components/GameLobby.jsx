@@ -113,13 +113,30 @@ const GameLobby = () => {
   };
 
 
+  const getTimeBasedGreeting = () => {
+    // Get current time in IST (UTC+5:30)
+    const now = new Date();
+    const utcTime = now.getTime() + (now.getTimezoneOffset() * 60 * 1000); // Convert to UTC
+    const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
+    const istTime = new Date(utcTime + istOffset);
+    const hours = istTime.getHours();
+    
+    if (hours >= 5 && hours < 12) {
+      return 'Good morning';
+    } else if (hours >= 12 && hours < 18) {
+      return 'Good afternoon';
+    } else {
+      return 'Good evening';
+    }
+  };
+
   return (
     <section className="space-y-6 text-white">
       <div className="glass-panel p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-sm uppercase tracking-[0.4em] text-white/60">Live Arena</p>
-            <h2 className="text-2xl font-semibold">Welcome back, {user?.studentName || user?.username}</h2>
+            <h2 className="text-2xl font-semibold">{getTimeBasedGreeting()}, {user?.studentName || user?.username}</h2>
           </div>
           <div className="flex flex-wrap gap-3">
             <button className="btn-primary" onClick={handleCreate} disabled={loading.create}>

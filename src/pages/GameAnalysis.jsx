@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import api from '../services/api';
 
 const GameAnalysis = () => {
   const { code } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -86,8 +87,24 @@ const GameAnalysis = () => {
           <p className="text-xs uppercase tracking-[0.6em] text-white/40">Game Analysis</p>
           <h1 className="text-3xl font-display font-semibold">Match Report: {analysis.gameCode}</h1>
         </div>
-        <button onClick={() => navigate('/arena')} className="btn-ghost">
-          Back to Arena
+        <button 
+          onClick={() => {
+            // Check if we came from admin dashboard
+            if (location.state?.from === 'admin') {
+              navigate('/admin', {
+                state: {
+                  tab: location.state.tab || 'games',
+                  search: location.state.search || '',
+                  filter: location.state.filter || 'all'
+                }
+              });
+            } else {
+              navigate('/arena');
+            }
+          }} 
+          className="btn-ghost"
+        >
+          {location.state?.from === 'admin' ? 'Back to Admin' : 'Back to Arena'}
         </button>
       </header>
 
@@ -206,6 +223,100 @@ const GameAnalysis = () => {
               ) : null}
             </div>
           </div>
+
+          {/* Rock Paper Scissors Detailed Analysis */}
+          {analysis.rpsData && (
+            <div className="glass-panel space-y-4 p-6 text-white">
+              <h2 className="text-xl font-semibold">Rock Paper Scissors Analysis</h2>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="bg-white/10 rounded-xl p-4">
+                  <p className="text-xs uppercase tracking-wider text-white/60 mb-2">{analysis.host.name}</p>
+                  <p className="text-3xl font-bold text-white mb-2">{analysis.rpsData.hostScore}</p>
+                  <div className="text-xs text-white/70 space-y-1 border-t border-white/20 pt-2">
+                    <p>Rounds won: {analysis.rpsData.hostWins}</p>
+                    <p>Rounds lost: {analysis.rpsData.guestWins}</p>
+                    <p>Draws: {analysis.rpsData.draws}</p>
+                    <p className="mt-2 font-semibold text-white">Choices:</p>
+                    <p>✊ Rock: {analysis.rpsData.hostChoices.rock || 0}</p>
+                    <p>✋ Paper: {analysis.rpsData.hostChoices.paper || 0}</p>
+                    <p>✌️ Scissors: {analysis.rpsData.hostChoices.scissors || 0}</p>
+                  </div>
+                </div>
+                <div className="bg-white/10 rounded-xl p-4">
+                  <p className="text-xs uppercase tracking-wider text-white/60 mb-2">{analysis.guest?.name || 'Guest'}</p>
+                  <p className="text-3xl font-bold text-white mb-2">{analysis.rpsData.guestScore}</p>
+                  <div className="text-xs text-white/70 space-y-1 border-t border-white/20 pt-2">
+                    <p>Rounds won: {analysis.rpsData.guestWins}</p>
+                    <p>Rounds lost: {analysis.rpsData.hostWins}</p>
+                    <p>Draws: {analysis.rpsData.draws}</p>
+                    <p className="mt-2 font-semibold text-white">Choices:</p>
+                    <p>✊ Rock: {analysis.rpsData.guestChoices.rock || 0}</p>
+                    <p>✋ Paper: {analysis.rpsData.guestChoices.paper || 0}</p>
+                    <p>✌️ Scissors: {analysis.rpsData.guestChoices.scissors || 0}</p>
+                  </div>
+                </div>
+              </div>
+              {analysis.rpsData.winner && (
+                <div className="mt-4 text-center">
+                  <p className="text-lg font-semibold text-white/80 mb-2">Winner:</p>
+                  <p className="text-3xl font-bold text-aurora">
+                    {analysis.rpsData.winner === 'host' 
+                      ? `${analysis.host.name} Wins!`
+                      : `${analysis.guest?.name || 'Guest'} Wins!`}
+                  </p>
+                  <p className="text-sm text-white/60 mt-2">
+                    Total Rounds: {analysis.rpsData.totalRounds}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Matching Pennies Detailed Analysis */}
+          {analysis.penniesData && (
+            <div className="glass-panel space-y-4 p-6 text-white">
+              <h2 className="text-xl font-semibold">Matching Pennies Analysis</h2>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="bg-white/10 rounded-xl p-4">
+                  <p className="text-xs uppercase tracking-wider text-white/60 mb-2">{analysis.host.name}</p>
+                  <p className="text-3xl font-bold text-white mb-2">{analysis.penniesData.hostScore}</p>
+                  <div className="text-xs text-white/70 space-y-1 border-t border-white/20 pt-2">
+                    <p>Rounds won: {analysis.penniesData.hostWins}</p>
+                    <p>Rounds lost: {analysis.penniesData.guestWins}</p>
+                    <p>Draws: {analysis.penniesData.draws}</p>
+                    <p className="mt-2 font-semibold text-white">Choices:</p>
+                    <p>👑 Heads: {analysis.penniesData.hostChoices.heads || 0}</p>
+                    <p>🦅 Tails: {analysis.penniesData.hostChoices.tails || 0}</p>
+                  </div>
+                </div>
+                <div className="bg-white/10 rounded-xl p-4">
+                  <p className="text-xs uppercase tracking-wider text-white/60 mb-2">{analysis.guest?.name || 'Guest'}</p>
+                  <p className="text-3xl font-bold text-white mb-2">{analysis.penniesData.guestScore}</p>
+                  <div className="text-xs text-white/70 space-y-1 border-t border-white/20 pt-2">
+                    <p>Rounds won: {analysis.penniesData.guestWins}</p>
+                    <p>Rounds lost: {analysis.penniesData.hostWins}</p>
+                    <p>Draws: {analysis.penniesData.draws}</p>
+                    <p className="mt-2 font-semibold text-white">Choices:</p>
+                    <p>👑 Heads: {analysis.penniesData.guestChoices.heads || 0}</p>
+                    <p>🦅 Tails: {analysis.penniesData.guestChoices.tails || 0}</p>
+                  </div>
+                </div>
+              </div>
+              {analysis.penniesData.winner && (
+                <div className="mt-4 text-center">
+                  <p className="text-lg font-semibold text-white/80 mb-2">Winner:</p>
+                  <p className="text-3xl font-bold text-aurora">
+                    {analysis.penniesData.winner === 'host' 
+                      ? `${analysis.host.name} Wins!`
+                      : `${analysis.guest?.name || 'Guest'} Wins!`}
+                  </p>
+                  <p className="text-sm text-white/60 mt-2">
+                    Total Rounds: {analysis.penniesData.totalRounds}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Game Info */}
           <div className="glass-panel space-y-4 p-6 text-white">
