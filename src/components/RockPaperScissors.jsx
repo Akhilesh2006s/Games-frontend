@@ -33,6 +33,7 @@ const RockPaperScissors = () => {
   const [opponentStatus, setOpponentStatus] = useState('Create or join a code to begin.');
   const [waitSeconds, setWaitSeconds] = useState(0);
   const [scores, setScores] = useState({ host: 0, guest: 0 });
+  const [endingGame, setEndingGame] = useState(false);
 
   const { socket, isConnected, isJoined } = useSocket({
     enabled: Boolean(currentGame),
@@ -181,6 +182,21 @@ const RockPaperScissors = () => {
         refreshGameDetails();
       }
     });
+    socket.on('game:ended', (payload) => {
+      if (payload.game) {
+        setCurrentGame(payload.game);
+        const winnerName = payload.winner === 'host'
+          ? (currentGame?.host?.studentName || currentGame?.host?.username)
+          : payload.winner === 'guest'
+          ? (currentGame?.guest?.studentName || currentGame?.guest?.username)
+          : 'Draw';
+        setStatusMessage(payload.winner 
+          ? `${winnerName} wins! Final score: ${payload.game.hostScore} - ${payload.game.guestScore}`
+          : 'Game ended in a draw!'
+        );
+        refreshGameDetails();
+      }
+    });
     socket.on('game:error', handleError);
 
     return () => {
@@ -190,6 +206,7 @@ const RockPaperScissors = () => {
       socket.off('game:peer_joined', handlePeerJoined);
       socket.off('game:guest_joined', handleGuestJoined);
       socket.off('game:started');
+      socket.off('game:ended');
       socket.off('game:error', handleError);
     };
   }, [currentGame?.guest, refreshGameDetails, setStatusMessage, socket]);
@@ -205,9 +222,35 @@ const RockPaperScissors = () => {
     }
     if (lockedMove) return; // Prevent double submission
     if (scores.host >= 10 || scores.guest >= 10) return; // Game already complete
+    if (currentGame.status === 'COMPLETE') return; // Game already ended
     setLockedMove(choice);
     setStatusMessage('Hand locked. Waiting for your opponent...');
     socket.emit('submitMove', { code: currentGame.code, move: choice });
+  };
+
+  const handleEndGame = async () => {
+    if (!currentGame?.code || endingGame) return;
+    if (currentGame.status === 'COMPLETE') return;
+    
+    const confirmEnd = window.confirm('Are you sure you want to end the game? The winner will be determined by current scores.');
+    if (!confirmEnd) return;
+
+    setEndingGame(true);
+    try {
+      const { data } = await api.post('/games/end-game', { code: currentGame.code });
+      setCurrentGame(data.game);
+      const winnerName = data.winner === 'host'
+        ? (currentGame?.host?.studentName || currentGame?.host?.username)
+        : data.winner === 'guest'
+        ? (currentGame?.guest?.studentName || currentGame?.guest?.username)
+        : 'Draw';
+      setStatusMessage(data.message || `${winnerName} wins!`);
+      refreshGameDetails();
+    } catch (err) {
+      setStatusMessage(err.response?.data?.message || 'Failed to end game');
+    } finally {
+      setEndingGame(false);
+    }
   };
 
   if (!currentGame) {
@@ -311,6 +354,19 @@ const RockPaperScissors = () => {
         </p>
         <p className="text-white/50">{opponentLock || 'Opponent pending'}</p>
       </div>
+
+      {/* End Game Button */}
+      {currentGame?.status !== 'COMPLETE' && currentGame?.guest && currentGame?.activeStage === 'ROCK_PAPER_SCISSORS' && (
+        <div className="flex justify-center">
+          <button
+            onClick={handleEndGame}
+            disabled={endingGame}
+            className="rounded-lg border border-red-500/50 bg-red-500/10 px-6 py-3 text-sm font-semibold text-red-400 hover:bg-red-500/20 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {endingGame ? 'Ending Game...' : 'End Game'}
+          </button>
+        </div>
+      )}
 
       {result && (
         <div className={`rounded-3xl border p-6 text-center ${

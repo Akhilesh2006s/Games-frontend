@@ -270,25 +270,29 @@ const GameAnalysis = () => {
             {filteredRounds.length === 0 ? (
               <p className="text-center text-white/60 py-8">No moves recorded for this game</p>
             ) : (
-              filteredRounds.map((round, idx) => (
-                <div
-                  key={idx}
-                  className="rounded-lg border border-white/10 bg-white/5 p-4"
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <span className="text-xs uppercase tracking-wide text-white/50">
-                        {getGameTypeName(round.gameType)}
-                      </span>
-                      {round.gameType !== 'GAME_OF_GO' && (
-                        <span className="ml-2 text-xs text-white/60">Round {round.roundNumber}</span>
-                      )}
-                      {round.gameType === 'GAME_OF_GO' && (
-                        <span className="ml-2 text-xs text-white/60">Move {round.roundNumber}</span>
-                      )}
+              filteredRounds.map((round, idx) => {
+                // Calculate sequential round/move number based on position in filtered list
+                const sequentialNumber = idx + 1;
+                
+                return (
+                  <div
+                    key={idx}
+                    className="rounded-lg border border-white/10 bg-white/5 p-4"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <span className="text-xs uppercase tracking-wide text-white/50">
+                          {getGameTypeName(round.gameType)}
+                        </span>
+                        {round.gameType !== 'GAME_OF_GO' && (
+                          <span className="ml-2 text-xs text-white/60">Round {sequentialNumber}</span>
+                        )}
+                        {round.gameType === 'GAME_OF_GO' && (
+                          <span className="ml-2 text-xs text-white/60">Move {sequentialNumber}</span>
+                        )}
+                      </div>
+                      <span className="text-xs text-white/40">{formatDate(round.timestamp)}</span>
                     </div>
-                    <span className="text-xs text-white/40">{formatDate(round.timestamp)}</span>
-                  </div>
                   <div className="space-y-2">
                     {round.moves.map((move, moveIdx) => (
                       <div key={moveIdx} className="flex items-center gap-3 text-sm">
@@ -308,11 +312,12 @@ const GameAnalysis = () => {
                       </span>
                     </div>
                   )}
-                  {round.summary && (
-                    <p className="mt-2 text-xs text-white/60">{round.summary}</p>
-                  )}
-                </div>
-              ))
+                    {round.summary && (
+                      <p className="mt-2 text-xs text-white/60">{round.summary}</p>
+                    )}
+                  </div>
+                );
+              })
             )}
           </div>
         </div>
@@ -325,39 +330,59 @@ const GameAnalysis = () => {
             <p className="text-center text-white/60 py-8">No highlights available</p>
           ) : (
             <div className="space-y-3">
-              {analysis.highlights.map((highlight, idx) => (
-                <div
-                  key={idx}
-                  className="rounded-lg border border-aurora/30 bg-aurora/10 p-4"
-                >
-                  {highlight.type === 'round_win' && (
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">🏆</span>
-                      <div>
-                        <p className="font-semibold text-aurora">
-                          {getGameTypeName(highlight.gameType)} - Round {highlight.round}
-                        </p>
-                        <p className="text-sm text-white/80 mt-1">
-                          {highlight.winner} wins! {highlight.summary}
-                        </p>
+              {analysis.highlights.map((highlight, idx) => {
+                // Find sequential round/move number for highlights
+                const getSequentialNumber = () => {
+                  if (highlight.type === 'round_win') {
+                    const roundIndex = allRounds.findIndex(r => 
+                      r.gameType === highlight.gameType && 
+                      r.roundNumber === highlight.round
+                    );
+                    return roundIndex !== -1 ? roundIndex + 1 : highlight.round;
+                  } else if (highlight.type === 'capture') {
+                    const moveIndex = allRounds.findIndex(r => 
+                      r.gameType === 'GAME_OF_GO' && 
+                      r.roundNumber === highlight.move
+                    );
+                    return moveIndex !== -1 ? moveIndex + 1 : highlight.move;
+                  }
+                  return highlight.round || highlight.move;
+                };
+
+                return (
+                  <div
+                    key={idx}
+                    className="rounded-lg border border-aurora/30 bg-aurora/10 p-4"
+                  >
+                    {highlight.type === 'round_win' && (
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">🏆</span>
+                        <div>
+                          <p className="font-semibold text-aurora">
+                            {getGameTypeName(highlight.gameType)} - Round {getSequentialNumber()}
+                          </p>
+                          <p className="text-sm text-white/80 mt-1">
+                            {highlight.winner} wins! {highlight.summary}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                  {highlight.type === 'capture' && (
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">⚔️</span>
-                      <div>
-                        <p className="font-semibold text-aurora">
-                          Game of Go - Move {highlight.move}
-                        </p>
-                        <p className="text-sm text-white/80 mt-1">
-                          {highlight.player} captured {highlight.captured} stone(s) at {highlight.position}
-                        </p>
+                    )}
+                    {highlight.type === 'capture' && (
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">⚔️</span>
+                        <div>
+                          <p className="font-semibold text-aurora">
+                            Game of Go - Move {getSequentialNumber()}
+                          </p>
+                          <p className="text-sm text-white/80 mt-1">
+                            {highlight.player} captured {highlight.captured} stone(s) at {highlight.position}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

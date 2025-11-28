@@ -135,11 +135,25 @@ const GameHistory = () => {
                     <p className="text-2xl font-display tracking-[0.3em] text-aurora mb-2">
                       {game.code}
                     </p>
-                    <p className="text-lg font-semibold">
-                      {game.host?.studentName || game.host?.username || 'Host'} 
-                      <span className="mx-2 text-white/40">vs</span>
-                      {game.guest?.studentName || game.guest?.username || 'Guest'}
-                    </p>
+                    <div className="flex items-center gap-3 text-lg font-semibold">
+                      <div>
+                        <div>{game.host?.studentName || game.host?.username || 'Host'}</div>
+                        {game.host?.enrollmentNo && (
+                          <div className="text-sm font-normal text-white/50">
+                            {game.host.enrollmentNo}
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-white/40">vs</span>
+                      <div>
+                        <div>{game.guest?.studentName || game.guest?.username || 'Guest'}</div>
+                        {game.guest?.enrollmentNo && (
+                          <div className="text-sm font-normal text-white/50">
+                            {game.guest.enrollmentNo}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
                   {/* Scores */}

@@ -5,6 +5,7 @@ import SettingsPage from './pages/SettingsPage';
 import GameAnalysis from './pages/GameAnalysis';
 import GameHistory from './pages/GameHistory';
 import LeaderboardPage from './pages/LeaderboardPage';
+import AdminDashboard from './pages/AdminDashboard';
 import useAuthStore from './store/useAuthStore';
 
 const ProtectedRoute = ({ children }) => {
@@ -57,6 +58,14 @@ function App() {
           element={
             <ProtectedRoute>
               <LeaderboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <AdminDashboard />
             </ProtectedRoute>
           }
         />

@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import GameLobby from '../components/GameLobby';
 import GameSelector from '../components/GameSelector';
 import RockPaperScissors from '../components/RockPaperScissors';
@@ -15,6 +15,13 @@ const ArenaPage = () => {
   const currentGame = useGameStore((state) => state.currentGame);
   const navigate = useNavigate();
   const [showStats, setShowStats] = useState(false);
+
+  // Redirect admin users to admin dashboard
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      navigate('/admin', { replace: true });
+    }
+  }, [user, navigate]);
 
   const handleLogout = () => {
     logout();
@@ -53,6 +60,14 @@ const ArenaPage = () => {
           >
             Settings
           </button>
+          {user?.role === 'admin' && (
+            <button
+              onClick={() => navigate('/admin')}
+              className="rounded-full border border-aurora/50 bg-aurora/10 px-4 py-2 text-sm text-aurora hover:bg-aurora/20 transition font-semibold"
+            >
+              Admin
+            </button>
+          )}
           <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70">
             {user?.studentName || user?.username || user?.email}
           </span>

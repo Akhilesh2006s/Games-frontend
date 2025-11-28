@@ -31,8 +31,16 @@ const GameSelector = ({ currentGame, onGameSelected }) => {
   const hasActiveGame = currentGame?.activeStage && 
     (currentGame.activeStage === 'ROCK_PAPER_SCISSORS' || currentGame.activeStage === 'GAME_OF_GO' || currentGame.activeStage === 'MATCHING_PENNIES');
 
+  // Check if game is in progress (cannot switch games)
+  const isGameInProgress = currentGame?.status === 'IN_PROGRESS' || 
+    (currentGame?.status === 'READY' && currentGame?.activeStage && currentGame?.activeStage !== null);
+
   const handleStartGame = async (gameType, boardSizeOverride = null) => {
     if (!currentGame?.code) return;
+    if (isGameInProgress && currentGame?.activeStage !== gameType) {
+      setStatusMessage('Cannot switch games while a game is in progress. End the current game first.');
+      return;
+    }
     const loadingKey = gameType === 'MATCHING_PENNIES' ? 'pennies' : gameType === 'GAME_OF_GO' ? 'go' : 'rps';
     setLoading((prev) => ({ ...prev, [loadingKey]: true }));
     try {
@@ -135,7 +143,9 @@ const GameSelector = ({ currentGame, onGameSelected }) => {
           {hasActiveGame ? 'Switch Game Mode' : 'Select Your Challenge'}
         </h2>
         <p className="text-sm text-white/60">
-          {hasActiveGame 
+          {isGameInProgress 
+            ? `Game in progress: ${currentGame.activeStage === 'ROCK_PAPER_SCISSORS' ? 'Rock Paper Scissors' : currentGame.activeStage === 'GAME_OF_GO' ? 'Game of Go' : 'Matching Pennies'}. End the current game to switch.`
+            : hasActiveGame
             ? `Currently playing: ${currentGame.activeStage === 'ROCK_PAPER_SCISSORS' ? 'Rock Paper Scissors' : currentGame.activeStage === 'GAME_OF_GO' ? 'Game of Go' : 'Matching Pennies'}. Select a different game below.`
             : 'Both players are connected! Choose your battle arena below.'}
         </p>
@@ -156,12 +166,12 @@ const GameSelector = ({ currentGame, onGameSelected }) => {
               className="group relative"
             >
               <div
-                onClick={() => !isDisabled && !game.hasOptions && handleStartGame(game.id)}
+                onClick={() => !isDisabled && !game.hasOptions && !isGameInProgress && handleStartGame(game.id)}
                 className={`relative h-full w-full overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-300 ${
                   isActive
                     ? 'border-aurora bg-gradient-to-br from-aurora/20 via-aurora/10 to-transparent shadow-[0_0_30px_rgba(83,255,227,0.3)]'
                     : `border-white/10 bg-gradient-to-br ${game.gradient} hover:border-aurora/50 hover:shadow-[0_0_25px_rgba(83,255,227,0.2)]`
-                } ${isDisabled && !isActive ? 'opacity-50' : game.hasOptions ? '' : 'cursor-pointer hover:-translate-y-1'}`}
+                } ${(isDisabled || (isGameInProgress && !isActive)) && !isActive ? 'opacity-50 cursor-not-allowed' : game.hasOptions ? '' : 'cursor-pointer hover:-translate-y-1'}`}
               >
                 {/* Active indicator glow */}
                 {isActive && (
@@ -446,13 +456,13 @@ const GameSelector = ({ currentGame, onGameSelected }) => {
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        if (!isDisabled) {
+                        if (!isDisabled && !isGameInProgress) {
                           const currentSize = goBoardSizeRef.current;
                           console.log('Start button clicked - Current goBoardSize state:', goBoardSize, 'Ref:', currentSize);
                           handleStartGame(game.id, currentSize);
                         }
                       }}
-                      disabled={isDisabled}
+                      disabled={isDisabled || isGameInProgress}
                       className="mt-4 w-full rounded-lg bg-gradient-to-r from-aurora/20 to-royal/20 border border-aurora/50 px-4 py-2.5 text-sm font-bold text-white transition-all hover:from-aurora/30 hover:to-royal/30 hover:shadow-[0_0_15px_rgba(83,255,227,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Start Game ({goBoardSize}×{goBoardSize})
