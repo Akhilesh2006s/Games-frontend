@@ -147,6 +147,197 @@ const AdminDashboard = () => {
     return new Date(date).toLocaleString();
   };
 
+  const getGameTypeName = (type) => {
+    const names = {
+      ROCK_PAPER_SCISSORS: 'Rock Paper Scissors',
+      GAME_OF_GO: 'Game of Go',
+      MATCHING_PENNIES: 'Matching Pennies',
+    };
+    return names[type] || type;
+  };
+
+  const getChoiceDisplay = (choice, move) => {
+    if (choice === 'pass') return 'Pass';
+    if (choice?.startsWith('place:')) {
+      const [, row, col, color] = choice.split(':');
+      return `${color === 'black' ? '⚫' : '⚪'} (${parseInt(row) + 1}, ${parseInt(col) + 1})${move?.captured ? ` - Captured ${move.captured}` : ''}`;
+    }
+    return choice?.charAt(0).toUpperCase() + choice?.slice(1) || choice;
+  };
+
+  const downloadGameAnalysisCSV = async (gameCode) => {
+    try {
+      setLoading(true);
+      const { data } = await api.get(`/games/analysis/${gameCode}`);
+      const analysis = data.analysis;
+      
+      // Create comprehensive CSV
+      const csvRows = [];
+      
+      // Game Information Section
+      csvRows.push('=== GAME INFORMATION ===');
+      csvRows.push('Game Code,' + analysis.gameCode);
+      csvRows.push('Status,' + analysis.status);
+      csvRows.push('Active Stage,' + getGameTypeName(analysis.activeStage));
+      csvRows.push('Started,' + formatDate(analysis.createdAt));
+      csvRows.push('Completed,' + (analysis.completedAt ? formatDate(analysis.completedAt) : 'N/A'));
+      csvRows.push('');
+      
+      // Players Section
+      csvRows.push('=== PLAYERS ===');
+      csvRows.push('Host Name,' + analysis.host.name);
+      csvRows.push('Host Email,' + analysis.host.email);
+      csvRows.push('Guest Name,' + (analysis.guest?.name || 'N/A'));
+      csvRows.push('Guest Email,' + (analysis.guest?.email || 'N/A'));
+      csvRows.push('');
+      
+      // Final Scores Section
+      csvRows.push('=== FINAL SCORES ===');
+      if (analysis.scores.rps.host > 0 || analysis.scores.rps.guest > 0) {
+        csvRows.push('Rock Paper Scissors,' + analysis.host.name + ',' + analysis.scores.rps.host + ',' + analysis.guest?.name + ',' + analysis.scores.rps.guest);
+      }
+      if (analysis.scores.pennies.host > 0 || analysis.scores.pennies.guest > 0) {
+        csvRows.push('Matching Pennies,' + analysis.host.name + ',' + analysis.scores.pennies.host + ',' + analysis.guest?.name + ',' + analysis.scores.pennies.guest);
+      }
+      if (analysis.scores.go) {
+        csvRows.push('Game of Go,Black (Host),' + (analysis.scores.go.black?.score || 0) + ',White (Guest),' + (analysis.scores.go.white?.score || 0));
+        csvRows.push('Game of Go Winner,' + (analysis.scores.go.winner === 'black' ? analysis.host.name : analysis.guest?.name || 'N/A'));
+      }
+      csvRows.push('');
+      
+      // Detailed Statistics
+      if (analysis.rpsData) {
+        csvRows.push('=== ROCK PAPER SCISSORS DETAILS ===');
+        csvRows.push('Total Rounds,' + analysis.rpsData.totalRounds);
+        csvRows.push('Host Wins,' + analysis.rpsData.hostWins);
+        csvRows.push('Guest Wins,' + analysis.rpsData.guestWins);
+        csvRows.push('Draws,' + analysis.rpsData.draws);
+        csvRows.push('Host Score,' + analysis.rpsData.hostScore);
+        csvRows.push('Guest Score,' + analysis.rpsData.guestScore);
+        csvRows.push('Host Rock Choices,' + (analysis.rpsData.hostChoices.rock || 0));
+        csvRows.push('Host Paper Choices,' + (analysis.rpsData.hostChoices.paper || 0));
+        csvRows.push('Host Scissors Choices,' + (analysis.rpsData.hostChoices.scissors || 0));
+        csvRows.push('Guest Rock Choices,' + (analysis.rpsData.guestChoices.rock || 0));
+        csvRows.push('Guest Paper Choices,' + (analysis.rpsData.guestChoices.paper || 0));
+        csvRows.push('Guest Scissors Choices,' + (analysis.rpsData.guestChoices.scissors || 0));
+        csvRows.push('Winner,' + (analysis.rpsData.winner === 'host' ? analysis.host.name : analysis.guest?.name || 'N/A'));
+        csvRows.push('');
+      }
+      
+      if (analysis.penniesData) {
+        csvRows.push('=== MATCHING PENNIES DETAILS ===');
+        csvRows.push('Total Rounds,' + analysis.penniesData.totalRounds);
+        csvRows.push('Host Wins,' + analysis.penniesData.hostWins);
+        csvRows.push('Guest Wins,' + analysis.penniesData.guestWins);
+        csvRows.push('Draws,' + analysis.penniesData.draws);
+        csvRows.push('Host Score,' + analysis.penniesData.hostScore);
+        csvRows.push('Guest Score,' + analysis.penniesData.guestScore);
+        csvRows.push('Host Heads Choices,' + (analysis.penniesData.hostChoices.heads || 0));
+        csvRows.push('Host Tails Choices,' + (analysis.penniesData.hostChoices.tails || 0));
+        csvRows.push('Guest Heads Choices,' + (analysis.penniesData.guestChoices.heads || 0));
+        csvRows.push('Guest Tails Choices,' + (analysis.penniesData.guestChoices.tails || 0));
+        csvRows.push('Winner,' + (analysis.penniesData.winner === 'host' ? analysis.host.name : analysis.guest?.name || 'N/A'));
+        csvRows.push('');
+      }
+      
+      if (analysis.goData) {
+        csvRows.push('=== GAME OF GO DETAILS ===');
+        csvRows.push('Board Size,' + analysis.goData.boardSize + 'x' + analysis.goData.boardSize);
+        csvRows.push('Komi,' + analysis.goData.komi);
+        csvRows.push('Captured Black,' + analysis.goData.capturedBlack);
+        csvRows.push('Captured White,' + analysis.goData.capturedWhite);
+        csvRows.push('Total Moves,' + analysis.goData.totalMoves);
+        if (analysis.goData.finalScore) {
+          csvRows.push('Black Score,' + (analysis.goData.finalScore.black?.score || 0));
+          csvRows.push('White Score,' + (analysis.goData.finalScore.white?.score || 0));
+          csvRows.push('Black Stones,' + (analysis.goData.finalScore.black?.stones || 0));
+          csvRows.push('Black Territory,' + (analysis.goData.finalScore.black?.territory || 0));
+          csvRows.push('White Stones,' + (analysis.goData.finalScore.white?.stones || 0));
+          csvRows.push('White Territory,' + (analysis.goData.finalScore.white?.territory || 0));
+          csvRows.push('Winner,' + (analysis.goData.finalScore.winner === 'black' ? analysis.host.name : analysis.guest?.name || 'N/A'));
+        }
+        csvRows.push('');
+      }
+      
+      // All Moves Section
+      const allRounds = [
+        ...analysis.rounds.rockPaperScissors.map(r => ({ ...r, gameType: 'ROCK_PAPER_SCISSORS' })),
+        ...analysis.rounds.gameOfGo.map(r => ({ ...r, gameType: 'GAME_OF_GO' })),
+        ...analysis.rounds.matchingPennies.map(r => ({ ...r, gameType: 'MATCHING_PENNIES' })),
+      ].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+      
+      csvRows.push('=== ALL MOVES ===');
+      csvRows.push('Move Number,Game Type,Round Number,Player,Choice,Position,Timestamp,Winner,Summary');
+      
+      allRounds.forEach((round, idx) => {
+        const moveNum = idx + 1;
+        const roundNum = round.roundNumber || idx + 1;
+        round.moves.forEach((move, moveIdx) => {
+          const row = [
+            moveNum,
+            getGameTypeName(round.gameType),
+            roundNum,
+            move.player?.name || 'Unknown',
+            getChoiceDisplay(move.choice, move),
+            move.row !== undefined && move.col !== undefined ? `(${move.row + 1},${move.col + 1})` : 'N/A',
+            formatDate(round.timestamp),
+            moveIdx === round.moves.length - 1 && round.winner ? round.winner.name : '',
+            round.summary || ''
+          ];
+          csvRows.push(row.map(cell => {
+            const cellStr = String(cell || '');
+            if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+              return `"${cellStr.replace(/"/g, '""')}"`;
+            }
+            return cellStr;
+          }).join(','));
+        });
+      });
+      
+      csvRows.push('');
+      
+      // Highlights Section
+      if (analysis.highlights && analysis.highlights.length > 0) {
+        csvRows.push('=== HIGHLIGHTS ===');
+        csvRows.push('Type,Game Type,Round/Move,Player,Details');
+        analysis.highlights.forEach(highlight => {
+          const roundNum = highlight.round || highlight.move || 'N/A';
+          const row = [
+            highlight.type,
+            getGameTypeName(highlight.gameType),
+            roundNum,
+            highlight.player || highlight.winner || 'N/A',
+            highlight.summary || highlight.position || highlight.captured ? `Captured: ${highlight.captured}` : ''
+          ];
+          csvRows.push(row.map(cell => {
+            const cellStr = String(cell || '');
+            if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+              return `"${cellStr.replace(/"/g, '""')}"`;
+            }
+            return cellStr;
+          }).join(','));
+        });
+      }
+      
+      // Download CSV
+      const csvContent = csvRows.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      
+      link.setAttribute('href', url);
+      link.setAttribute('download', `game_analysis_${analysis.gameCode}_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to download game analysis');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const downloadCSV = () => {
     // Prepare CSV data
     const headers = ['Rank', 'Name', 'Email', 'Enrollment No', 'Group', 'Classroom', 'Team', 'Wins', 'Losses', 'Draws', 'Total Points', 'RPS Wins', 'RPS Points', 'Go Wins', 'Go Points', 'Pennies Wins', 'Pennies Points'];
@@ -194,15 +385,6 @@ const AdminDashboard = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
-
-  const getGameTypeName = (type) => {
-    const names = {
-      ROCK_PAPER_SCISSORS: 'Rock Paper Scissors',
-      GAME_OF_GO: 'Game of Go',
-      MATCHING_PENNIES: 'Matching Pennies',
-    };
-    return names[type] || type || 'Not Started';
   };
 
   const availableClassrooms = useMemo(() => {
@@ -539,6 +721,142 @@ const AdminDashboard = () => {
       {activeTab === 'games' && (
         <div>
           <div className="glass-panel mb-6 p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-white">Filters & Search</h2>
+              <button
+                onClick={async () => {
+                  try {
+                    setLoading(true);
+                    setError('');
+                    
+                    // Fetch all games (with higher limit)
+                    const { data } = await api.get('/admin/games', { 
+                      params: { 
+                        status: gameFilter !== 'all' ? gameFilter : undefined,
+                        search: gameSearch || undefined,
+                        limit: 1000 // Get all games
+                      } 
+                    });
+                    
+                    const allGames = data.games || [];
+                    
+                    // Create comprehensive CSV
+                    const csvRows = [];
+                    
+                    // Header
+                    csvRows.push('=== ALL GAMES DATA ===');
+                    csvRows.push(`Total Games,${allGames.length}`);
+                    csvRows.push(`Export Date,${new Date().toISOString()}`);
+                    csvRows.push('');
+                    
+                    // Games Summary Section
+                    csvRows.push('=== GAMES SUMMARY ===');
+                    csvRows.push('Game Code,Status,Game Type,Host Name,Host Email,Host Enrollment,Guest Name,Guest Email,Guest Enrollment,Started,Completed,RPS Host Score,RPS Guest Score,Pennies Host Score,Pennies Guest Score,Go Winner,Go Black Score,Go White Score,Go Board Size,Go Captured Black,Go Captured White');
+                    
+                    allGames.forEach(game => {
+                      const row = [
+                        game.code || '',
+                        game.status || '',
+                        getGameTypeName(game.activeStage),
+                        game.host?.studentName || game.host?.username || 'N/A',
+                        game.host?.email || 'N/A',
+                        game.host?.enrollmentNo || 'N/A',
+                        game.guest?.studentName || game.guest?.username || 'N/A',
+                        game.guest?.email || 'N/A',
+                        game.guest?.enrollmentNo || 'N/A',
+                        formatDate(game.createdAt),
+                        game.completedAt ? formatDate(game.completedAt) : 'N/A',
+                        game.hostScore || 0,
+                        game.guestScore || 0,
+                        game.hostPenniesScore || 0,
+                        game.guestPenniesScore || 0,
+                        game.goFinalScore?.winner === 'black' ? (game.host?.studentName || game.host?.username) : game.goFinalScore?.winner === 'white' ? (game.guest?.studentName || game.guest?.username) : 'N/A',
+                        game.goFinalScore?.black?.score || 'N/A',
+                        game.goFinalScore?.white?.score || 'N/A',
+                        game.goBoardSize || 'N/A',
+                        game.goCapturedBlack || 0,
+                        game.goCapturedWhite || 0
+                      ];
+                      csvRows.push(row.map(cell => {
+                        const cellStr = String(cell || '');
+                        if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+                          return `"${cellStr.replace(/"/g, '""')}"`;
+                        }
+                        return cellStr;
+                      }).join(','));
+                    });
+                    
+                    csvRows.push('');
+                    csvRows.push('=== DETAILED MOVES FOR EACH GAME ===');
+                    csvRows.push('Game Code,Move Number,Game Type,Round Number,Player,Choice,Position,Timestamp,Winner,Summary');
+                    
+                    // Fetch detailed analysis for each completed game
+                    for (const game of allGames.filter(g => g.status === 'COMPLETE')) {
+                      try {
+                        const { data: analysisData } = await api.get(`/games/analysis/${game.code}`);
+                        const analysis = analysisData.analysis;
+                        
+                        const allRounds = [
+                          ...analysis.rounds.rockPaperScissors.map(r => ({ ...r, gameType: 'ROCK_PAPER_SCISSORS' })),
+                          ...analysis.rounds.gameOfGo.map(r => ({ ...r, gameType: 'GAME_OF_GO' })),
+                          ...analysis.rounds.matchingPennies.map(r => ({ ...r, gameType: 'MATCHING_PENNIES' })),
+                        ].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                        
+                        allRounds.forEach((round, idx) => {
+                          const moveNum = idx + 1;
+                          const roundNum = round.roundNumber || idx + 1;
+                          round.moves.forEach((move, moveIdx) => {
+                            const row = [
+                              game.code,
+                              moveNum,
+                              getGameTypeName(round.gameType),
+                              roundNum,
+                              move.player?.name || 'Unknown',
+                              getChoiceDisplay(move.choice, move),
+                              move.row !== undefined && move.col !== undefined ? `(${move.row + 1},${move.col + 1})` : 'N/A',
+                              formatDate(round.timestamp),
+                              moveIdx === round.moves.length - 1 && round.winner ? round.winner.name : '',
+                              round.summary || ''
+                            ];
+                            csvRows.push(row.map(cell => {
+                              const cellStr = String(cell || '');
+                              if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+                                return `"${cellStr.replace(/"/g, '""')}"`;
+                              }
+                              return cellStr;
+                            }).join(','));
+                          });
+                        });
+                      } catch (err) {
+                        console.error(`Error fetching analysis for game ${game.code}:`, err);
+                        // Continue with other games even if one fails
+                      }
+                    }
+                    
+                    // Download CSV
+                    const csvContent = csvRows.join('\n');
+                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                    const link = document.createElement('a');
+                    const url = URL.createObjectURL(blob);
+                    
+                    link.setAttribute('href', url);
+                    link.setAttribute('download', `all_games_data_${new Date().toISOString().split('T')[0]}.csv`);
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  } catch (err) {
+                    setError(err.response?.data?.message || 'Failed to download all games data');
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                disabled={loading}
+                className="rounded-lg border border-green-500/50 bg-green-500/10 px-4 py-2 text-sm font-semibold text-green-400 hover:bg-green-500/20 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Generating CSV...' : '📥 Download All Games CSV'}
+              </button>
+            </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <label className="block text-sm font-medium text-white/70 mb-2">Filter by Status</label>
@@ -605,19 +923,28 @@ const AdminDashboard = () => {
                   </div>
                   <div className="flex flex-col gap-2">
                     {game.status === 'COMPLETE' && (
-                      <button
-                        onClick={() => navigate(`/analysis/${game.code}`, {
-                          state: {
-                            from: 'admin',
-                            tab: 'games',
-                            search: gameSearch,
-                            filter: gameFilter
-                          }
-                        })}
-                        className="rounded-lg border border-aurora/50 bg-aurora/10 px-4 py-2 text-sm text-aurora hover:bg-aurora/20 transition font-semibold"
-                      >
-                        View Analysis
-                      </button>
+                      <>
+                        <button
+                          onClick={() => navigate(`/analysis/${game.code}`, {
+                            state: {
+                              from: 'admin',
+                              tab: 'games',
+                              search: gameSearch,
+                              filter: gameFilter
+                            }
+                          })}
+                          className="rounded-lg border border-aurora/50 bg-aurora/10 px-4 py-2 text-sm text-aurora hover:bg-aurora/20 transition font-semibold"
+                        >
+                          View Analysis
+                        </button>
+                        <button
+                          onClick={() => downloadGameAnalysisCSV(game.code)}
+                          disabled={loading}
+                          className="rounded-lg border border-green-500/50 bg-green-500/10 px-4 py-2 text-sm text-green-400 hover:bg-green-500/20 transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {loading ? 'Loading...' : '📥 Download CSV'}
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -768,18 +1095,27 @@ const AdminDashboard = () => {
                           <div className="text-right">
                             <p className="text-sm text-white/70">{formatDate(game.createdAt)}</p>
                             {game.status === 'COMPLETE' && (
-                              <button
-                                onClick={() => navigate(`/analysis/${game.code}`, {
-                                  state: {
-                                    from: 'admin',
-                                    tab: 'student',
-                                    studentEmail: studentStats?.user?.email
-                                  }
-                                })}
-                                className="mt-2 text-xs text-aurora hover:text-aurora/70"
-                              >
-                                View Analysis
-                              </button>
+                              <div className="flex flex-col gap-2 mt-2">
+                                <button
+                                  onClick={() => navigate(`/analysis/${game.code}`, {
+                                    state: {
+                                      from: 'admin',
+                                      tab: 'student',
+                                      studentEmail: studentStats?.user?.email
+                                    }
+                                  })}
+                                  className="text-xs text-aurora hover:text-aurora/70"
+                                >
+                                  View Analysis
+                                </button>
+                                <button
+                                  onClick={() => downloadGameAnalysisCSV(game.code)}
+                                  disabled={loading}
+                                  className="text-xs text-green-400 hover:text-green-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {loading ? 'Loading...' : '📥 CSV'}
+                                </button>
+                              </div>
                             )}
                           </div>
                         </div>
