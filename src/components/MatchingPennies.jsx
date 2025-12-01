@@ -230,7 +230,7 @@ const MatchingPennies = () => {
           <p className="text-sm text-white/70 mt-1">
             🎯 Both Players Choose
           </p>
-          <p className="text-xs text-white/60 mt-1">{roleDescription}</p>
+          <p className="text-base font-semibold text-white/90 mt-2">{roleDescription}</p>
         </div>
         <p className="mt-4 text-white/60">{statusMessage || opponentStatus}</p>
       </header>
@@ -246,14 +246,14 @@ const MatchingPennies = () => {
               {lockedChoice ? `Locked ${lockedChoice.toUpperCase()}` : 'Choose heads or tails'}
             </p>
           </div>
-          <div className="flex-1 rounded-2xl border border-white/5 bg-night/20 p-4 text-center">
-            <p className="text-xs uppercase tracking-[0.4em] text-white/50">
+          <div className="flex-1 rounded-2xl border border-white/5 bg-night/20 p-6 text-center">
+            <p className="text-sm uppercase tracking-[0.4em] text-white/50 font-semibold">
               {isHost ? (currentGame.guest?.studentName || currentGame.guest?.username || 'Challenger') : (currentGame.host?.studentName || currentGame.host?.username || 'Host')}
             </p>
-            <p className={`text-6xl ${opponentLock ? '' : 'animate-pulse'}`}>
+            <p className={`text-7xl mt-2 ${opponentLock ? '' : 'animate-pulse'}`}>
               {opponentLock ? '🪙' : '⌛'}
             </p>
-            <p className="text-white/60">
+            <p className="text-base font-semibold text-white/80 mt-2">
               {opponentLock || (currentGame?.guest ? 'Waiting for lock' : 'Opponent pending')}
             </p>
           </div>

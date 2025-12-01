@@ -94,12 +94,12 @@ const ArenaPage = () => {
         </div>
       ) : (
         <>
-          {/* Row 1: Game Lobby - Compact */}
+          {/* Row 1: Game Lobby - Live Arena Section (Create Code) - At Top */}
           <div className="mb-6">
-            <GameLobby />
+            <GameLobby showArenaOnly={true} />
           </div>
 
-          {/* Row 2: Three Game Selector Boxes - Always Visible in 3 Columns */}
+          {/* Row 2: Three Game Options */}
           <div className="mb-6">
             {currentGame?.guest ? (
               <GameSelector currentGame={currentGame} />
@@ -164,7 +164,12 @@ const ArenaPage = () => {
             )}
           </div>
 
-          {/* Row 3: Active Game Display - Full Width */}
+          {/* Row 3: Game History - Below Game Options */}
+          <div className="mb-6">
+            <GameLobby showHistoryOnly={true} />
+          </div>
+
+          {/* Row 4: Active Game Display - Full Width */}
           {currentGame?.activeStage && (
             <div className="mb-6">
               {currentGame.activeStage === 'ROCK_PAPER_SCISSORS' ? (

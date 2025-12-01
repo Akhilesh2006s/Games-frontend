@@ -581,21 +581,13 @@ const GameOfGo = () => {
 
     // Start interval if not already running
     if (!intervalRef.current) {
-      lastTickRef.current = Date.now();
       intervalRef.current = setInterval(() => {
         const now = Date.now();
-        const elapsed = (now - lastTickRef.current) / 1000; // Elapsed since last tick
-        lastTickRef.current = now;
 
-        // Only update if elapsed is reasonable (prevents huge jumps)
-        if (elapsed > 1.5) {
-          return;
-        }
-
-        // Check if we've received a server update recently (within last 2 seconds)
+        // Check if we've received a server update recently (within last 3 seconds)
         // If not, don't count down (wait for server update)
         const timeSinceServerUpdate = (now - lastServerUpdateRef.current) / 1000;
-        if (timeSinceServerUpdate > 2) {
+        if (timeSinceServerUpdate > 3) {
           // No recent server update, don't count down
           return;
         }
@@ -605,42 +597,44 @@ const GameOfGo = () => {
           
           const updated = { ...prev };
 
-          // Only count down for the ACTIVE player
+          // Only count down for the ACTIVE player - decrement by exactly 1 second
           if (currentTurn === 'black' && prev.black) {
-            // Get current displayed time and subtract elapsed
-            const currentTime = prev.black.isByoYomi ? prev.black.byoYomiTime : prev.black.mainTime;
-            const newTime = Math.max(0, currentTime - elapsed);
             if (prev.black.isByoYomi) {
+              // Byo Yomi: decrement byoYomiTime by 1 second
+              const newByoYomiTime = Math.max(0, prev.black.byoYomiTime - 1);
               updated.black = {
                 ...prev.black,
-                byoYomiTime: newTime,
+                byoYomiTime: newByoYomiTime,
               };
             } else {
+              // Fischer: decrement mainTime by 1 second
+              const newMainTime = Math.max(0, prev.black.mainTime - 1);
               updated.black = {
                 ...prev.black,
-                mainTime: newTime,
+                mainTime: newMainTime,
               };
             }
           } else if (currentTurn === 'white' && prev.white) {
-            // Get current displayed time and subtract elapsed
-            const currentTime = prev.white.isByoYomi ? prev.white.byoYomiTime : prev.white.mainTime;
-            const newTime = Math.max(0, currentTime - elapsed);
             if (prev.white.isByoYomi) {
+              // Byo Yomi: decrement byoYomiTime by 1 second
+              const newByoYomiTime = Math.max(0, prev.white.byoYomiTime - 1);
               updated.white = {
                 ...prev.white,
-                byoYomiTime: newTime,
+                byoYomiTime: newByoYomiTime,
               };
             } else {
+              // Fischer: decrement mainTime by 1 second
+              const newMainTime = Math.max(0, prev.white.mainTime - 1);
               updated.white = {
                 ...prev.white,
-                mainTime: newTime,
+                mainTime: newMainTime,
               };
             }
           }
 
           return updated;
         });
-      }, 100); // Update every 100ms for smooth display
+      }, 1000); // Update every 1 second for accurate countdown
     }
 
     return () => {

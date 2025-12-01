@@ -1,16 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import api from '../services/api';
+import useAuthStore from '../store/useAuthStore';
 
 const GameAnalysis = () => {
   const { code } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const user = useAuthStore((state) => state.user);
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedGame, setSelectedGame] = useState('all');
+  
+  const isAdmin = user?.role === 'admin';
 
   useEffect(() => {
     const fetchAnalysis = async () => {
@@ -88,10 +92,11 @@ const GameAnalysis = () => {
           <h1 className="text-3xl font-display font-semibold">Match Report: {analysis.gameCode}</h1>
         </div>
         <div className="flex items-center gap-4">
-          <button
-            onClick={() => {
-              // Create comprehensive CSV
-              const csvRows = [];
+          {isAdmin && (
+            <button
+              onClick={() => {
+                // Create comprehensive CSV
+                const csvRows = [];
               
               // Game Information Section
               csvRows.push('=== GAME INFORMATION ===');
@@ -249,6 +254,7 @@ const GameAnalysis = () => {
           >
             📥 Download CSV
           </button>
+          )}
           <button 
             onClick={() => {
               // Check if we came from admin dashboard
@@ -276,7 +282,7 @@ const GameAnalysis = () => {
             className="btn-ghost"
           >
             {location.state?.from === 'admin' ? 'Back to Admin' : 'Back to Arena'}
-          </button>
+        </button>
         </div>
       </header>
 
@@ -299,24 +305,24 @@ const GameAnalysis = () => {
 
       {/* Overview Stats - Show when overview tab is active */}
       {activeTab === 'overview' && (
-        <div className="mb-8 grid gap-4 md:grid-cols-4">
-          <div className="glass-panel p-6 text-white">
-            <p className="text-xs uppercase tracking-[0.4em] text-white/50">Total Moves</p>
-            <p className="text-3xl font-bold text-aurora mt-2">{analysis.moveCount}</p>
-          </div>
-          <div className="glass-panel p-6 text-white">
-            <p className="text-xs uppercase tracking-[0.4em] text-white/50">RPS Rounds</p>
-            <p className="text-3xl font-bold text-purple-400 mt-2">{analysis.totalRounds.rps}</p>
-          </div>
-          <div className="glass-panel p-6 text-white">
-            <p className="text-xs uppercase tracking-[0.4em] text-white/50">Go Moves</p>
-            <p className="text-3xl font-bold text-white mt-2">{analysis.totalRounds.go}</p>
-          </div>
-          <div className="glass-panel p-6 text-white">
-            <p className="text-xs uppercase tracking-[0.4em] text-white/50">Pennies Rounds</p>
-            <p className="text-3xl font-bold text-yellow-400 mt-2">{analysis.totalRounds.pennies}</p>
-          </div>
+      <div className="mb-8 grid gap-4 md:grid-cols-4">
+        <div className="glass-panel p-6 text-white">
+          <p className="text-xs uppercase tracking-[0.4em] text-white/50">Total Moves</p>
+          <p className="text-3xl font-bold text-aurora mt-2">{analysis.moveCount}</p>
         </div>
+        <div className="glass-panel p-6 text-white">
+          <p className="text-xs uppercase tracking-[0.4em] text-white/50">RPS Rounds</p>
+          <p className="text-3xl font-bold text-purple-400 mt-2">{analysis.totalRounds.rps}</p>
+        </div>
+        <div className="glass-panel p-6 text-white">
+          <p className="text-xs uppercase tracking-[0.4em] text-white/50">Go Moves</p>
+          <p className="text-3xl font-bold text-white mt-2">{analysis.totalRounds.go}</p>
+        </div>
+        <div className="glass-panel p-6 text-white">
+          <p className="text-xs uppercase tracking-[0.4em] text-white/50">Pennies Rounds</p>
+          <p className="text-3xl font-bold text-yellow-400 mt-2">{analysis.totalRounds.pennies}</p>
+        </div>
+      </div>
       )}
 
       {/* Game Filter */}
@@ -558,24 +564,24 @@ const GameAnalysis = () => {
                 const sequentialNumber = idx + 1;
                 
                 return (
-                  <div
-                    key={idx}
-                    className="rounded-lg border border-white/10 bg-white/5 p-4"
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <span className="text-xs uppercase tracking-wide text-white/50">
-                          {getGameTypeName(round.gameType)}
-                        </span>
-                        {round.gameType !== 'GAME_OF_GO' && (
+                <div
+                  key={idx}
+                  className="rounded-lg border border-white/10 bg-white/5 p-4"
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <span className="text-xs uppercase tracking-wide text-white/50">
+                        {getGameTypeName(round.gameType)}
+                      </span>
+                      {round.gameType !== 'GAME_OF_GO' && (
                           <span className="ml-2 text-xs text-white/60">Round {sequentialNumber}</span>
-                        )}
-                        {round.gameType === 'GAME_OF_GO' && (
+                      )}
+                      {round.gameType === 'GAME_OF_GO' && (
                           <span className="ml-2 text-xs text-white/60">Move {sequentialNumber}</span>
-                        )}
-                      </div>
-                      <span className="text-xs text-white/40">{formatDate(round.timestamp)}</span>
+                      )}
                     </div>
+                    <span className="text-xs text-white/40">{formatDate(round.timestamp)}</span>
+                  </div>
                   <div className="space-y-2">
                     {round.moves.map((move, moveIdx) => (
                       <div key={moveIdx} className="flex items-center gap-3 text-sm">
@@ -595,10 +601,10 @@ const GameAnalysis = () => {
                       </span>
                     </div>
                   )}
-                    {round.summary && (
-                      <p className="mt-2 text-xs text-white/60">{round.summary}</p>
-                    )}
-                  </div>
+                  {round.summary && (
+                    <p className="mt-2 text-xs text-white/60">{round.summary}</p>
+                  )}
+                </div>
                 );
               })
             )}
@@ -633,37 +639,37 @@ const GameAnalysis = () => {
                 };
 
                 return (
-                  <div
-                    key={idx}
-                    className="rounded-lg border border-aurora/30 bg-aurora/10 p-4"
-                  >
-                    {highlight.type === 'round_win' && (
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">🏆</span>
-                        <div>
-                          <p className="font-semibold text-aurora">
+                <div
+                  key={idx}
+                  className="rounded-lg border border-aurora/30 bg-aurora/10 p-4"
+                >
+                  {highlight.type === 'round_win' && (
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">🏆</span>
+                      <div>
+                        <p className="font-semibold text-aurora">
                             {getGameTypeName(highlight.gameType)} - Round {getSequentialNumber()}
-                          </p>
-                          <p className="text-sm text-white/80 mt-1">
-                            {highlight.winner} wins! {highlight.summary}
-                          </p>
-                        </div>
+                        </p>
+                        <p className="text-sm text-white/80 mt-1">
+                          {highlight.winner} wins! {highlight.summary}
+                        </p>
                       </div>
-                    )}
-                    {highlight.type === 'capture' && (
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">⚔️</span>
-                        <div>
-                          <p className="font-semibold text-aurora">
+                    </div>
+                  )}
+                  {highlight.type === 'capture' && (
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">⚔️</span>
+                      <div>
+                        <p className="font-semibold text-aurora">
                             Game of Go - Move {getSequentialNumber()}
-                          </p>
-                          <p className="text-sm text-white/80 mt-1">
-                            {highlight.player} captured {highlight.captured} stone(s) at {highlight.position}
-                          </p>
-                        </div>
+                        </p>
+                        <p className="text-sm text-white/80 mt-1">
+                          {highlight.player} captured {highlight.captured} stone(s) at {highlight.position}
+                        </p>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
+                </div>
                 );
               })}
             </div>

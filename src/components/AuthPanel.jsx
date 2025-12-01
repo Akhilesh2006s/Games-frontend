@@ -58,7 +58,7 @@ const AuthPanel = ({ onSuccess }) => {
             }`}
             onClick={() => setMode(type)}
           >
-            {type === 'login' ? 'Sign In' : 'Sign Up'}
+            {type === 'login' ? 'Login' : 'Sign Up'}
           </button>
         ))}
       </div>
@@ -102,11 +102,11 @@ const AuthPanel = ({ onSuccess }) => {
         </div>
         {error && <p className="text-sm text-pulse">{error}</p>}
         <button type="submit" className="btn-primary w-full" disabled={loading}>
-          {loading ? 'Syncing...' : mode === 'login' ? 'Launch Session' : 'Claim Callsign'}
+          {loading ? 'Syncing...' : mode === 'login' ? 'Launch Session' : 'Register'}
         </button>
       </form>
       <p className="mt-4 text-center text-xs uppercase tracking-widest text-white/40">
-        ceteris-paribus multiplayer authentication • mongodb atlas
+        ceteris-paribus multiplayer authentication
       </p>
     </div>
   );
