@@ -164,12 +164,7 @@ const ArenaPage = () => {
             )}
           </div>
 
-          {/* Row 3: Game History - Below Game Options */}
-          <div className="mb-6">
-            <GameLobby showHistoryOnly={true} />
-          </div>
-
-          {/* Row 4: Active Game Display - Full Width */}
+          {/* Row 3: Active Game Display - Below Game Options */}
           {currentGame?.activeStage && (
             <div className="mb-6">
               {currentGame.activeStage === 'ROCK_PAPER_SCISSORS' ? (
@@ -181,6 +176,11 @@ const ArenaPage = () => {
               ) : null}
             </div>
           )}
+
+          {/* Row 4: Game History - Below Active Game */}
+          <div className="mb-6">
+            <GameLobby showHistoryOnly={true} />
+          </div>
         </>
       )}
     </main>
