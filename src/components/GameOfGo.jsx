@@ -537,11 +537,11 @@ const GameOfGo = () => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Client-side timer for smooth countdown (only for display, server is source of truth)
-  const lastTickRef = useRef(Date.now());
-  const intervalRef = useRef(null);
+  // Client-side timer using real-time calculations
+  // Track when server last sent time and calculate remaining based on real elapsed time
   const lastServerUpdateRef = useRef(Date.now());
   const serverTimeInfoRef = useRef(null);
+  const intervalRef = useRef(null);
 
   // Store server time info when received
   useEffect(() => {
@@ -551,16 +551,78 @@ const GameOfGo = () => {
     }
   }, [timeInfo]);
 
-  // Client-side timer is DISABLED - rely entirely on server updates
-  // The server sends time updates every second, so we don't need client-side countdown
-  // This prevents double-counting (client + server both decrementing)
+  // Client-side smooth display using real-time calculations
+  // Updates display every 100ms but calculates from server time + elapsed time
   useEffect(() => {
-    // Clear any existing interval
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
+    if (!timeInfo.black || !timeInfo.white || gamePhase !== 'PLAY') {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      return;
     }
-  }, []);
+
+    // Start interval for smooth display
+    if (!intervalRef.current) {
+      intervalRef.current = setInterval(() => {
+        if (!serverTimeInfoRef.current) return;
+
+        const now = Date.now();
+        const elapsedSinceUpdate = Math.floor((now - lastServerUpdateRef.current) / 1000);
+        
+        // Only update if at least 1 second has passed since last server update
+        if (elapsedSinceUpdate < 1) return;
+
+        setTimeInfo((prev) => {
+          if (!prev.black || !prev.white || !serverTimeInfoRef.current) return prev;
+          
+          const updated = { ...prev };
+          const serverTime = serverTimeInfoRef.current;
+
+          // Calculate remaining time based on server time minus elapsed time
+          // Only for the active player
+          if (currentTurn === 'black' && prev.black && serverTime.black) {
+            if (serverTime.black.isByoYomi) {
+              const remaining = Math.max(0, serverTime.black.byoYomiTime - elapsedSinceUpdate);
+              updated.black = {
+                ...serverTime.black,
+                byoYomiTime: remaining,
+              };
+            } else {
+              const remaining = Math.max(0, serverTime.black.mainTime - elapsedSinceUpdate);
+              updated.black = {
+                ...serverTime.black,
+                mainTime: remaining,
+              };
+            }
+          } else if (currentTurn === 'white' && prev.white && serverTime.white) {
+            if (serverTime.white.isByoYomi) {
+              const remaining = Math.max(0, serverTime.white.byoYomiTime - elapsedSinceUpdate);
+              updated.white = {
+                ...serverTime.white,
+                byoYomiTime: remaining,
+              };
+            } else {
+              const remaining = Math.max(0, serverTime.white.mainTime - elapsedSinceUpdate);
+              updated.white = {
+                ...serverTime.white,
+                mainTime: remaining,
+              };
+            }
+          }
+
+          return updated;
+        });
+      }, 100); // Update display every 100ms for smoothness
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [currentTurn, gamePhase, timeInfo]);
 
   // PlayerClock Component
   const PlayerClock = ({ color, timeInfo, isActive, playerName }) => {
