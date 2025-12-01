@@ -569,81 +569,16 @@ const GameOfGo = () => {
     }
   }, [timeInfo]);
 
-  // Start/stop timer based on game phase
+  // Client-side timer is DISABLED - rely entirely on server updates
+  // The server sends time updates every second, so we don't need client-side countdown
+  // This prevents double-counting (client + server both decrementing)
   useEffect(() => {
-    if (!timeInfo.black || !timeInfo.white || gamePhase !== 'PLAY') {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      return;
+    // Clear any existing interval
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
-
-    // Start interval if not already running
-    if (!intervalRef.current) {
-      intervalRef.current = setInterval(() => {
-        const now = Date.now();
-
-        // Check if we've received a server update recently (within last 3 seconds)
-        // If not, don't count down (wait for server update)
-        const timeSinceServerUpdate = (now - lastServerUpdateRef.current) / 1000;
-        if (timeSinceServerUpdate > 3) {
-          // No recent server update, don't count down
-          return;
-        }
-
-        setTimeInfo((prev) => {
-          if (!prev.black || !prev.white) return prev;
-          
-          const updated = { ...prev };
-
-          // Only count down for the ACTIVE player - decrement by exactly 1 second
-          if (currentTurn === 'black' && prev.black) {
-            if (prev.black.isByoYomi) {
-              // Byo Yomi: decrement byoYomiTime by 1 second
-              const newByoYomiTime = Math.max(0, prev.black.byoYomiTime - 1);
-              updated.black = {
-                ...prev.black,
-                byoYomiTime: newByoYomiTime,
-              };
-            } else {
-              // Fischer: decrement mainTime by 1 second
-              const newMainTime = Math.max(0, prev.black.mainTime - 1);
-              updated.black = {
-                ...prev.black,
-                mainTime: newMainTime,
-              };
-            }
-          } else if (currentTurn === 'white' && prev.white) {
-            if (prev.white.isByoYomi) {
-              // Byo Yomi: decrement byoYomiTime by 1 second
-              const newByoYomiTime = Math.max(0, prev.white.byoYomiTime - 1);
-              updated.white = {
-                ...prev.white,
-                byoYomiTime: newByoYomiTime,
-              };
-            } else {
-              // Fischer: decrement mainTime by 1 second
-              const newMainTime = Math.max(0, prev.white.mainTime - 1);
-              updated.white = {
-                ...prev.white,
-                mainTime: newMainTime,
-              };
-            }
-          }
-
-          return updated;
-        });
-      }, 1000); // Update every 1 second for accurate countdown
-    }
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-  }, [currentTurn, gamePhase, timeInfo]);
+  }, []);
 
   // PlayerClock Component
   const PlayerClock = ({ color, timeInfo, isActive, playerName }) => {
