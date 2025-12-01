@@ -69,48 +69,30 @@ const GameOfGo = () => {
       }
       // Load time info if available
       if (data.game.goTimeControl && data.game.goTimeControl.mode !== 'none') {
-        // Calculate time remaining using server's time state and elapsed time
+        // Use stored time directly - server already decrements it, no need to recalculate elapsed time
         const blackState = data.game.goTimeState?.black;
         const whiteState = data.game.goTimeState?.white;
         
         if (blackState && whiteState) {
-          // Calculate elapsed time from server's last move time
-          const elapsed = data.game.goLastMoveTime 
-            ? Math.floor((new Date() - new Date(data.game.goLastMoveTime)) / 1000)
-            : 0;
-          
-          // Only count down for the active player
+          // Use stored time directly (server handles decrementing via interval)
           const blackTime = {
             mode: data.game.goTimeControl.mode,
-            mainTime: data.game.goCurrentTurn === 'black' 
-              ? Math.max(0, blackState.mainTime - elapsed)
-              : blackState.mainTime,
+            mainTime: blackState.mainTime,
             isByoYomi: blackState.isByoYomi,
-            byoYomiTime: blackState.isByoYomi 
-              ? (data.game.goCurrentTurn === 'black'
-                  ? Math.max(0, blackState.byoYomiTime - elapsed)
-                  : blackState.byoYomiTime)
-              : null,
+            byoYomiTime: blackState.isByoYomi ? blackState.byoYomiTime : null,
             byoYomiPeriods: blackState.isByoYomi ? blackState.byoYomiPeriods : null,
           };
           
           const whiteTime = {
             mode: data.game.goTimeControl.mode,
-            mainTime: data.game.goCurrentTurn === 'white'
-              ? Math.max(0, whiteState.mainTime - elapsed)
-              : whiteState.mainTime,
+            mainTime: whiteState.mainTime,
             isByoYomi: whiteState.isByoYomi,
-            byoYomiTime: whiteState.isByoYomi
-              ? (data.game.goCurrentTurn === 'white'
-                  ? Math.max(0, whiteState.byoYomiTime - elapsed)
-                  : whiteState.byoYomiTime)
-              : null,
+            byoYomiTime: whiteState.isByoYomi ? whiteState.byoYomiTime : null,
             byoYomiPeriods: whiteState.isByoYomi ? whiteState.byoYomiPeriods : null,
           };
           
           setTimeInfo({ black: blackTime, white: whiteTime });
-          // Initialize last tick time and server update time
-          lastTickRef.current = Date.now();
+          // Initialize server update time
           lastServerUpdateRef.current = Date.now();
           serverTimeInfoRef.current = { black: blackTime, white: whiteTime };
         }
