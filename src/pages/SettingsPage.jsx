@@ -256,17 +256,18 @@ const SettingsPage = () => {
           </form>
         </div>
 
-        {/* Danger Zone */}
-        <div className="glass-panel space-y-6 p-6 text-white border-2 border-red-500/20">
+        {/* Game Actions */}
+        <div className="glass-panel space-y-6 p-6 text-white border-2 border-white/10">
           <header>
-            <p className="text-xs uppercase tracking-[0.4em] text-red-400/60">Danger Zone</p>
-            <h2 className="text-2xl font-semibold mt-2 text-red-400">Account Actions</h2>
+            <p className="text-xs uppercase tracking-[0.4em] text-white/50">Options</p>
+            <h2 className="text-2xl font-semibold mt-2 text-white">Account Actions</h2>
           </header>
 
           <div className="space-y-4">
             <button
               onClick={handleLogout}
-              className="w-full rounded-2xl border-2 border-red-500/50 bg-red-500/10 px-4 py-3 text-red-400 hover:bg-red-500/20 transition"
+              className="w-full rounded-2xl border-2 border-white/20 bg-white/5 px-4 py-3 text-white hover:bg-white/10 transition"
+              style={{ textTransform: 'none' }}
             >
               Logout
             </button>

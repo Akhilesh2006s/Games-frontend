@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import useGameStore from '../store/useGameStore';
 import useAuthStore from '../store/useAuthStore';
 import api from '../services/api';
 import useSocket from '../hooks/useSocket';
+import RematchModal from './RematchModal';
 
 const choices = [
   { label: 'Heads', value: 'heads', emoji: '🪙', icon: '👑' },
@@ -10,7 +11,7 @@ const choices = [
 ];
 
 const MatchingPennies = () => {
-  const { currentGame, statusMessage, setStatusMessage, setCurrentGame } = useGameStore();
+  const { selectedGameType, setSelectedGameType, currentGame, statusMessage, setStatusMessage, setCurrentGame, resetGame } = useGameStore();
   const user = useAuthStore((state) => state.user);
   const [result, setResult] = useState(null);
   const [lockedChoice, setLockedChoice] = useState('');
@@ -18,6 +19,9 @@ const MatchingPennies = () => {
   const [opponentStatus, setOpponentStatus] = useState('Create or join a code to begin.');
   const [scores, setScores] = useState({ host: 0, guest: 0 });
   const [roundNumber, setRoundNumber] = useState(0);
+  const [timeRemaining, setTimeRemaining] = useState(null);
+  const timeRemainingRef = useRef(null);
+  const [rematchModal, setRematchModal] = useState({ isOpen: false, opponentName: '', requesterId: null, gameType: null, gameSettings: null });
   const { socket, isConnected, isJoined } = useSocket({
     enabled: Boolean(currentGame),
     roomCode: currentGame?.code,
@@ -72,6 +76,39 @@ const MatchingPennies = () => {
     setOpponentStatus('Waiting for a challenger to enter your code.');
   }, [currentGame, isHost]);
 
+  // Timer for per-move time control
+  useEffect(() => {
+    if (!currentGame?.penniesTimePerMove || currentGame.penniesTimePerMove === 0) {
+      setTimeRemaining(null);
+      return;
+    }
+
+    if (!lockedChoice && !result && isJoined && (currentGame.status === 'IN_PROGRESS' || currentGame.status === 'READY')) {
+      // Start timer when it's player's turn and no choice is locked
+      const timePerMove = currentGame.penniesTimePerMove || 15;
+      setTimeRemaining(timePerMove);
+      
+      // Notify server that round has started (for timeout tracking)
+      if (socket && currentGame?.code && !lockedChoice && currentGame.status === 'IN_PROGRESS') {
+        socket.emit('startRound', { code: currentGame.code, gameType: 'MATCHING_PENNIES' });
+      }
+      
+      const timer = setInterval(() => {
+        setTimeRemaining((prev) => {
+          if (prev === null || prev <= 1) {
+            // Time expired - server will handle timeout and player loses
+            return null;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(timer);
+    } else {
+      setTimeRemaining(null);
+    }
+  }, [currentGame?.penniesTimePerMove, lockedChoice, result, isJoined, currentGame?.status, socket, currentGame?.code]);
+
   useEffect(() => {
     if (!socket) return undefined;
 
@@ -97,11 +134,26 @@ const MatchingPennies = () => {
         setStatusMessage(
           `Round ${payload.roundNumber} complete. ${winnerText} Score: ${currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} ${payload.hostScore} - ${payload.guestScore} ${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}`
         );
-        // Clear result after 4 seconds to allow next round
-        setTimeout(() => {
-          setResult(null);
-          setStatusMessage('Ready for next round. Both players choose!');
-        }, 4000);
+        // Clear result after 8 seconds to allow players to see the result, or when a new move is played
+        const resultTimeout = setTimeout(() => {
+          // Only clear if no new result has been set (check if result is still the same)
+          setResult((prevResult) => {
+            if (prevResult && prevResult.roundNumber === payload.roundNumber) {
+              return null;
+            }
+            return prevResult;
+          });
+          setStatusMessage((prevMsg) => {
+            // Only update if it's still the round complete message
+            if (prevMsg.includes('Round') && prevMsg.includes('complete')) {
+              return 'Ready for next round. Both players choose!';
+            }
+            return prevMsg;
+          });
+        }, 8000);
+        
+        // Store timeout ID to clear if needed
+        return () => clearTimeout(resultTimeout);
       }
       refreshGameDetails();
     };
@@ -148,6 +200,81 @@ const MatchingPennies = () => {
     });
     socket.on('game:error', handleError);
 
+    // Handle game ended (from resign)
+    const handleGameEnded = (payload) => {
+      if (payload.game) {
+        setCurrentGame(payload.game);
+        const winnerName = payload.winner === 'host'
+          ? (payload.game.host?.studentName || payload.game.host?.username || 'Host')
+          : payload.winner === 'guest'
+            ? (payload.game.guest?.studentName || payload.game.guest?.username || 'Guest')
+            : null;
+        if (winnerName) {
+          setStatusMessage(`${winnerName} wins! ${payload.winner === 'host' ? payload.game.hostPenniesScore : payload.game.guestPenniesScore} - ${payload.winner === 'host' ? payload.game.guestPenniesScore : payload.game.hostPenniesScore}`);
+        } else {
+          setStatusMessage('Game ended in a draw!');
+        }
+        // Set final result for display
+        setResult({
+          isGameComplete: true,
+          winner: payload.winner,
+          hostScore: payload.game.hostPenniesScore || 0,
+          guestScore: payload.game.guestPenniesScore || 0,
+        });
+        setScores({
+          host: payload.game.hostPenniesScore || 0,
+          guest: payload.game.guestPenniesScore || 0,
+        });
+      }
+    };
+
+    socket.on('game:ended', handleGameEnded);
+
+    // Rematch handlers
+    const handleRematchRequest = (payload) => {
+      const opponentName = payload.requesterName || 'Opponent';
+      setRematchModal({
+        isOpen: true,
+        opponentName,
+        requesterId: payload.requesterId,
+        gameType: payload.gameType,
+        gameSettings: payload.gameSettings,
+      });
+    };
+
+    const handleRematchAccepted = async (payload) => {
+      setRematchModal({ isOpen: false, opponentName: '', requesterId: null, gameType: null, gameSettings: null });
+      if (payload.game) {
+        setCurrentGame(payload.game);
+        // Set game type for auto-start
+        if (payload.gameType) {
+          setSelectedGameType(payload.gameType);
+        } else if (!selectedGameType) {
+          setSelectedGameType('MATCHING_PENNIES');
+        }
+        // Reset game state
+        setResult(null);
+        setScores({ host: 0, guest: 0 });
+        setLockedChoice('');
+        setOpponentLock('');
+        setRoundNumber(0);
+        setStatusMessage('Rematch started! Both players connected.');
+        // Join new game room
+        if (socket && payload.newCode) {
+          socket.emit('joinGame', { code: payload.newCode });
+        }
+      }
+    };
+
+    const handleRematchRejected = (payload) => {
+      setRematchModal({ isOpen: false, opponentName: '', requesterId: null, gameType: null, gameSettings: null });
+      setStatusMessage(`${payload.rejectorName || 'Opponent'} declined the rematch.`);
+    };
+
+    socket.on('rematch:requested', handleRematchRequest);
+    socket.on('rematch:accepted', handleRematchAccepted);
+    socket.on('rematch:rejected', handleRematchRejected);
+
     return () => {
       socket.off('penniesResult', handleResult);
       socket.off('penniesOpponentLocked', handleOpponentLock);
@@ -156,8 +283,12 @@ const MatchingPennies = () => {
       socket.off('game:guest_joined', handleGuestJoined);
       socket.off('game:started');
       socket.off('game:error', handleError);
+      socket.off('game:ended', handleGameEnded);
+      socket.off('rematch:requested', handleRematchRequest);
+      socket.off('rematch:accepted', handleRematchAccepted);
+      socket.off('rematch:rejected', handleRematchRejected);
     };
-  }, [currentGame?.guest, refreshGameDetails, setStatusMessage, socket, isHost, currentGame]);
+  }, [currentGame?.guest, refreshGameDetails, setStatusMessage, setCurrentGame, socket, isHost, currentGame, selectedGameType, setSelectedGameType]);
 
   const submitChoice = (choice) => {
     if (!socket || !currentGame || !isJoined) {
@@ -194,7 +325,7 @@ const MatchingPennies = () => {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.4em] text-white/50">Stage 03</p>
-            <h3 className="text-2xl font-semibold">Matching Pennies • Finale</h3>
+            <h3 className="text-2xl font-semibold">Matching Pennies</h3>
           </div>
           <div className="flex items-center gap-2">
             <div className={`h-2 w-2 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400'}`} />
@@ -205,7 +336,7 @@ const MatchingPennies = () => {
         </div>
         <div className="mt-4 flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-6 py-4">
           <div className="text-center">
-            <p className="text-xs uppercase tracking-[0.4em] text-white/50">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/70">
               {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'}
             </p>
             <p className={`text-3xl font-bold ${scores.host >= 10 ? 'text-aurora' : 'text-white'}`}>
@@ -217,7 +348,7 @@ const MatchingPennies = () => {
             <p className="text-lg font-semibold text-white/40">VS</p>
           </div>
           <div className="text-center">
-            <p className="text-xs uppercase tracking-[0.4em] text-white/50">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/70">
               {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
             </p>
             <p className={`text-3xl font-bold ${scores.guest >= 10 ? 'text-aurora' : 'text-white'}`}>
@@ -245,9 +376,24 @@ const MatchingPennies = () => {
             <p className="text-white/60">
               {lockedChoice ? `Locked ${lockedChoice.toUpperCase()}` : 'Choose heads or tails'}
             </p>
+            {/* Timer Display for You */}
+            {timeRemaining !== null && timeRemaining > 0 && !lockedChoice && currentGame?.status === 'IN_PROGRESS' && (
+              <div className="mt-3">
+                <p className={`text-2xl font-bold font-mono ${
+                  timeRemaining <= 5 
+                    ? 'text-red-400 animate-pulse' 
+                    : timeRemaining <= 10 
+                      ? 'text-yellow-400' 
+                      : 'text-aurora'
+                }`}>
+                  {timeRemaining}s
+                </p>
+                <p className="text-xs text-white/50 mt-1">Time remaining</p>
+              </div>
+            )}
           </div>
           <div className="flex-1 rounded-2xl border border-white/5 bg-night/20 p-6 text-center">
-            <p className="text-sm uppercase tracking-[0.4em] text-white/50 font-semibold">
+            <p className="text-base font-semibold uppercase tracking-[0.2em] text-white/70">
               {isHost ? (currentGame.guest?.studentName || currentGame.guest?.username || 'Challenger') : (currentGame.host?.studentName || currentGame.host?.username || 'Host')}
             </p>
             <p className={`text-7xl mt-2 ${opponentLock ? '' : 'animate-pulse'}`}>
@@ -304,6 +450,33 @@ const MatchingPennies = () => {
               <p className="text-white/70 mt-2">
                 Final Score: {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} {result.hostScore} - {result.guestScore} {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
               </p>
+              <div className="flex gap-4 mt-4 justify-center">
+                <button
+                  onClick={() => {
+                    if (socket && currentGame?.code) {
+                      socket.emit('rematch:request', { code: currentGame.code });
+                      setStatusMessage('Rematch request sent. Waiting for opponent...');
+                    }
+                  }}
+                  className="rounded-lg bg-gradient-to-r from-aurora/20 to-royal/20 border border-aurora/50 px-6 py-3 text-sm font-bold text-white hover:from-aurora/30 hover:to-royal/30 transition"
+                >
+                  Rematch
+                </button>
+                <button
+                  onClick={() => {
+                    resetGame();
+                    setSelectedGameType(null);
+                    setResult(null);
+                    setScores({ host: 0, guest: 0 });
+                    setLockedChoice('');
+                    setOpponentLock('');
+                    setRoundNumber(0);
+                  }}
+                  className="rounded-lg border border-white/20 bg-white/5 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10 transition"
+                >
+                  Go Back to Arena
+                </button>
+              </div>
             </>
           ) : (
             <>
@@ -331,6 +504,75 @@ const MatchingPennies = () => {
         </div>
       )}
 
+      {/* End Game Button */}
+      {currentGame?.guest && currentGame?.status !== 'COMPLETE' && scores.host < 10 && scores.guest < 10 && (
+        <div className="flex justify-end">
+          <button
+            onClick={async () => {
+              if (!currentGame?.code) return;
+              const hasAnyPoints = scores.host > 0 || scores.guest > 0;
+              const confirmText = hasAnyPoints 
+                ? 'Are you sure you want to resign? The game will end and your opponent will win.'
+                : 'Are you sure you want to cancel this game?';
+              if (!window.confirm(confirmText)) return;
+              
+              try {
+                const { data } = await api.post('/games/end-game', { code: currentGame.code });
+                // Show result immediately
+                const winnerName = data.winner === 'host'
+                  ? (currentGame?.host?.studentName || currentGame?.host?.username || 'Host')
+                  : data.winner === 'guest'
+                    ? (currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest')
+                    : null;
+                if (winnerName) {
+                  setStatusMessage(`${winnerName} wins! ${data.winner === 'host' ? data.game.hostPenniesScore : data.game.guestPenniesScore} - ${data.winner === 'host' ? data.game.guestPenniesScore : data.game.hostPenniesScore}`);
+                } else {
+                  setStatusMessage('Game ended in a draw!');
+                }
+                // Set final result for display
+                setResult({
+                  isGameComplete: true,
+                  winner: data.winner,
+                  hostScore: data.game.hostPenniesScore || 0,
+                  guestScore: data.game.guestPenniesScore || 0,
+                });
+                setScores({
+                  host: data.game.hostPenniesScore || 0,
+                  guest: data.game.guestPenniesScore || 0,
+                });
+                setCurrentGame(data.game);
+                await refreshGameDetails();
+              } catch (err) {
+                console.error('Failed to end game:', err);
+                setStatusMessage(err.response?.data?.message || 'Failed to end game');
+              }
+            }}
+            disabled={!isJoined}
+            className="rounded-lg border border-red-500/50 bg-red-500/10 px-6 py-3 text-sm font-semibold text-red-400 hover:bg-red-500/20 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {scores.host > 0 || scores.guest > 0 ? 'Resign' : 'Cancel Game'}
+          </button>
+        </div>
+      )}
+
+      <RematchModal
+        isOpen={rematchModal.isOpen}
+        opponentName={rematchModal.opponentName}
+        onAccept={() => {
+          if (socket && currentGame?.code && rematchModal.requesterId) {
+            socket.emit('rematch:accept', { code: currentGame.code, requesterId: rematchModal.requesterId });
+          }
+        }}
+        onReject={() => {
+          if (socket && currentGame?.code) {
+            socket.emit('rematch:reject', { code: currentGame.code });
+          }
+          setRematchModal({ isOpen: false, opponentName: '', requesterId: null, gameType: null, gameSettings: null });
+        }}
+        onClose={() => {
+          setRematchModal({ isOpen: false, opponentName: '', requesterId: null, gameType: null, gameSettings: null });
+        }}
+      />
     </section>
   );
 };

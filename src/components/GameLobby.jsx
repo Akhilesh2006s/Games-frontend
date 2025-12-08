@@ -6,12 +6,13 @@ import useAuthStore from '../store/useAuthStore';
 import useSocket from '../hooks/useSocket';
 import GameSelector from './GameSelector';
 
-const GameLobby = ({ showHistoryOnly = false, showArenaOnly = false }) => {
+const GameLobby = ({ showHistoryOnly = false, showArenaOnly = false, selectedGameType, onGameTypeSelected }) => {
   const { currentGame, setCurrentGame, matches, setMatches, statusMessage, setStatusMessage } = useGameStore();
   const user = useAuthStore((state) => state.user);
   const navigate = useNavigate();
   const [joinCode, setJoinCode] = useState('');
   const [loading, setLoading] = useState({ create: false, join: false });
+  const [copied, setCopied] = useState(false);
   
   // Socket connection for real-time updates
   const { socket } = useSocket({
@@ -22,9 +23,13 @@ const GameLobby = ({ showHistoryOnly = false, showArenaOnly = false }) => {
   const refreshMatches = useCallback(async () => {
     try {
       const { data } = await api.get('/games');
-      setMatches(data.games);
+      // Filter to show all games including completed ones
+      // The backend should return all games, but ensure we preserve completed games
+      const allGames = data.games || [];
+      setMatches(allGames);
     } catch (err) {
       console.error(err);
+      // Don't clear matches on error, preserve existing state
     }
   }, [setMatches]);
 
@@ -67,6 +72,23 @@ const GameLobby = ({ showHistoryOnly = false, showArenaOnly = false }) => {
   }, [socket, currentGame, setCurrentGame, setStatusMessage, refreshMatches]);
 
   const handleCreate = async () => {
+    // Require game selection before creating code
+    if (!selectedGameType) {
+      setStatusMessage('Please select a game first before creating a code.');
+      return;
+    }
+    
+    // Prevent creating a new game if there's an active game in progress
+    const hasActiveGame = currentGame?.activeStage && 
+      (currentGame.activeStage === 'ROCK_PAPER_SCISSORS' || currentGame.activeStage === 'GAME_OF_GO' || currentGame.activeStage === 'MATCHING_PENNIES');
+    const isGameInProgress = currentGame?.status === 'IN_PROGRESS' || 
+      (currentGame?.status === 'READY' && currentGame?.activeStage && currentGame?.activeStage !== null);
+    
+    if (hasActiveGame || isGameInProgress) {
+      setStatusMessage('Cannot create a new game while a game is in progress. Please end the current game first.');
+      return;
+    }
+    
     setLoading((prev) => ({ ...prev, create: true }));
     try {
       const { data } = await api.post('/games/create');
@@ -78,7 +100,7 @@ const GameLobby = ({ showHistoryOnly = false, showArenaOnly = false }) => {
       } else {
         setCurrentGame(data.game);
       }
-      setStatusMessage('Share the code with your challenger to unlock the Go grid.');
+      setStatusMessage('Share the code with your challenger to start playing.');
       setJoinCode('');
       await refreshMatches();
     } catch (err) {
@@ -142,7 +164,12 @@ const GameLobby = ({ showHistoryOnly = false, showArenaOnly = false }) => {
               <h2 className="text-2xl font-semibold">{getTimeBasedGreeting()}, {user?.studentName || user?.username}</h2>
             </div>
             <div className="flex flex-wrap gap-3">
-              <button className="btn-primary" onClick={handleCreate} disabled={loading.create}>
+              <button 
+                className="btn-primary" 
+                onClick={handleCreate} 
+                disabled={loading.create || !selectedGameType || (currentGame?.activeStage && (currentGame.activeStage === 'ROCK_PAPER_SCISSORS' || currentGame.activeStage === 'GAME_OF_GO' || currentGame.activeStage === 'MATCHING_PENNIES')) || (currentGame?.status === 'IN_PROGRESS')}
+                title={!selectedGameType ? 'Please select a game first' : (currentGame?.activeStage ? 'End the current game before creating a new one' : '')}
+              >
                 {loading.create ? 'Generating...' : 'Create Code'}
               </button>
               <form className="flex items-center gap-2" onSubmit={handleJoin}>
@@ -161,50 +188,42 @@ const GameLobby = ({ showHistoryOnly = false, showArenaOnly = false }) => {
           {currentGame && (
             <div className="mt-6">
               <div className="rounded-3xl border border-white/10 bg-gradient-to-r from-royal/30 to-pulse/20 p-6 text-center">
-                <p className="text-sm uppercase tracking-[0.5em] text-white/60">Arena Code</p>
-                <p className="text-5xl font-display font-semibold tracking-[0.3em]">{currentGame.code}</p>
-                <p className="mt-3 text-white/70">{statusMessage || 'Waiting for opponent...'}</p>
+                <p className="text-sm uppercase tracking-[0.5em] text-white/60 mb-4">Arena Code</p>
+                <div className="relative inline-block">
+                  <button
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(currentGame.code);
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      } catch (err) {
+                        console.error('Failed to copy:', err);
+                      }
+                    }}
+                    className="text-4xl md:text-5xl font-display font-semibold tracking-[0.3em] text-white hover:text-aurora transition-colors cursor-pointer select-none"
+                    style={{
+                      WebkitUserSelect: 'none',
+                      userSelect: 'none',
+                      WebkitTapHighlightColor: 'transparent',
+                      outline: 'none',
+                    }}
+                    onMouseDown={(e) => e.preventDefault()}
+                  >
+                    {currentGame.code}
+                  </button>
+                  {copied && (
+                    <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-aurora/90 text-night px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap z-10">
+                      Copied!
+                    </div>
+                  )}
+                </div>
+                <p className="mt-6 text-white/70">{statusMessage || 'Waiting for opponent...'}</p>
               </div>
             </div>
           )}
         </div>
       )}
 
-      {!showArenaOnly && (
-        <div className="glass-panel p-6">
-          <header className="flex items-center justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.4em] text-white/50">Match Archive</p>
-              <h3 className="text-xl font-semibold">Recent runs</h3>
-            </div>
-            <button className="btn-ghost" onClick={refreshMatches}>
-              Refresh
-            </button>
-          </header>
-          <div className="mt-4 space-y-3">
-            {matches.length === 0 && <p className="text-white/50">No matches yet. Create one to seed the archive.</p>}
-            {matches.map((match) => (
-              <div key={match._id} className="flex flex-wrap items-center justify-between rounded-2xl border border-white/5 bg-white/5 px-4 py-3">
-                <div className="flex-1">
-                  <p className="text-sm uppercase tracking-[0.4em] text-white/40">{match.status}</p>
-                  <p className="text-lg font-semibold">
-                    {match.host?.studentName || match.host?.username || 'Host'} vs {match.guest?.studentName || match.guest?.username || '???'}
-                  </p>
-                  <p className="text-3xl font-display tracking-[0.3em] text-white/70 mt-1">{match.code}</p>
-                </div>
-                {match.status === 'COMPLETE' && (
-                  <button
-                    onClick={() => navigate(`/analysis/${match.code}`)}
-                    className="ml-4 rounded-lg border border-aurora/50 bg-aurora/10 px-4 py-2 text-sm text-aurora hover:bg-aurora/20 transition"
-                  >
-                    View Analysis
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </section>
   );
 };

@@ -6,15 +6,24 @@ import RockPaperScissors from '../components/RockPaperScissors';
 import MatchingPennies from '../components/MatchingPennies';
 import GameOfGo from '../components/GameOfGo';
 import UserStats from '../components/UserStats';
+import OnlinePlayers from '../components/OnlinePlayers';
 import useAuthStore from '../store/useAuthStore';
 import useGameStore from '../store/useGameStore';
 
 const ArenaPage = () => {
   const logout = useAuthStore((state) => state.logout);
   const user = useAuthStore((state) => state.user);
-  const currentGame = useGameStore((state) => state.currentGame);
+  const { currentGame, selectedGameType, setSelectedGameType } = useGameStore();
   const navigate = useNavigate();
   const [showStats, setShowStats] = useState(false);
+  const [activeTab, setActiveTab] = useState('arena'); // 'arena' or 'online'
+  
+  // Set selected game type when game starts
+  useEffect(() => {
+    if (currentGame?.activeStage && !selectedGameType) {
+      setSelectedGameType(currentGame.activeStage);
+    }
+  }, [currentGame?.activeStage, selectedGameType, setSelectedGameType]);
 
   // Redirect admin users to admin dashboard
   useEffect(() => {
@@ -71,7 +80,7 @@ const ArenaPage = () => {
           <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70">
             {user?.studentName || user?.username || user?.email}
           </span>
-          <button className="btn-ghost" onClick={handleLogout}>
+          <button className="btn-ghost !normal-case" onClick={handleLogout} style={{ textTransform: 'none' }}>
             Logout
           </button>
         </div>
@@ -94,93 +103,162 @@ const ArenaPage = () => {
         </div>
       ) : (
         <>
-          {/* Row 1: Game Lobby - Live Arena Section (Create Code) - At Top */}
-          <div className="mb-6">
-            <GameLobby showArenaOnly={true} />
+          {/* Tab Navigation */}
+          <div className="mb-6 flex gap-2 rounded-full bg-white/5 p-1">
+            <button
+              onClick={() => setActiveTab('arena')}
+              className={`flex-1 rounded-full px-6 py-3 text-sm font-semibold transition ${
+                activeTab === 'arena'
+                  ? 'bg-aurora text-night shadow-lg'
+                  : 'text-white/70 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              Live Arena
+            </button>
+            <button
+              onClick={() => setActiveTab('online')}
+              className={`flex-1 rounded-full px-6 py-3 text-sm font-semibold transition ${
+                activeTab === 'online'
+                  ? 'bg-aurora text-night shadow-lg'
+                  : 'text-white/70 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              Online Players
+            </button>
           </div>
 
-          {/* Row 2: Three Game Options */}
-          <div className="mb-6">
-            {currentGame?.guest ? (
-              <GameSelector currentGame={currentGame} />
-            ) : (
-              <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
-                <div className="glass-panel p-6 text-white border-2 border-white/10">
-                  <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-pulse/30 to-royal/30 text-3xl">
-                    ✊
-                  </div>
-                  <div className="mb-3">
-                    <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white/80">
-                      Stage 01
-                    </span>
-                  </div>
-                  <h3 className="mb-2 text-xl font-bold text-white">Rock • Paper • Scissors</h3>
-                  <p className="mb-4 text-sm leading-relaxed text-white/70">
-                    Classic hand game. Choose rock, paper, or scissors. First to 10 points wins.
-                  </p>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">✊ Rock</span>
-                    <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">✋ Paper</span>
-                    <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">✌️ Scissors</span>
+          {activeTab === 'online' ? (
+            <OnlinePlayers />
+          ) : (
+            <>
+              {/* Step 1: Select Game (if no game selected and no active game) */}
+              {!selectedGameType && !currentGame?.activeStage && !currentGame?.guest && (
+                <div className="mb-6">
+                  <div className="glass-panel p-6 text-white">
+                    <h2 className="text-2xl font-semibold mb-4">Select a Game</h2>
+                    <p className="text-white/60 mb-6">Choose a game to play, then create a code to invite your opponent.</p>
+                    <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
+                      <button
+                        onClick={() => {
+                          setSelectedGameType('ROCK_PAPER_SCISSORS');
+                        }}
+                        className="glass-panel p-6 text-white border-2 border-white/10 hover:border-aurora/50 transition text-left"
+                      >
+                        <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-pulse/30 to-royal/30 text-3xl">
+                          ✊
+                        </div>
+                        <div className="mb-3">
+                          <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white/80">
+                            Stage 01
+                          </span>
+                        </div>
+                        <h3 className="mb-2 text-xl font-bold text-white">Rock • Paper • Scissors</h3>
+                        <p className="mb-4 text-sm leading-relaxed text-white/70">
+                          Classic hand game. Choose rock, paper, or scissors. First to 10 points wins.
+                        </p>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">✊ Rock</span>
+                          <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">✋ Paper</span>
+                          <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">✌️ Scissors</span>
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedGameType('GAME_OF_GO');
+                        }}
+                        className="glass-panel p-6 text-white border-2 border-white/10 hover:border-aurora/50 transition text-left"
+                      >
+                        <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-royal/30 to-aurora/30 text-3xl">
+                          ⚫
+                        </div>
+                        <div className="mb-3">
+                          <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white/80">
+                            Stage 02
+                          </span>
+                        </div>
+                        <h3 className="mb-2 text-xl font-bold text-white">Game of Go</h3>
+                        <p className="mb-4 text-sm leading-relaxed text-white/70">
+                          Strategic board game. Place stones to surround territory and capture opponent stones.
+                        </p>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">⚫ Black</span>
+                          <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">⚪ White</span>
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedGameType('MATCHING_PENNIES');
+                        }}
+                        className="glass-panel p-6 text-white border-2 border-white/10 hover:border-aurora/50 transition text-left"
+                      >
+                        <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-aurora/30 to-pulse/30 text-3xl">
+                          🪙
+                        </div>
+                        <div className="mb-3">
+                          <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white/80">
+                            Stage 03
+                          </span>
+                        </div>
+                        <h3 className="mb-2 text-xl font-bold text-white">Matching Pennies</h3>
+                        <p className="mb-4 text-sm leading-relaxed text-white/70">
+                          Psychology game. One chooses, one guesses. If guess matches, guesser wins. First to 10 points wins.
+                        </p>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">👑 Heads</span>
+                          <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">🦅 Tails</span>
+                        </div>
+                      </button>
+                    </div>
                   </div>
                 </div>
-                <div className="glass-panel p-6 text-white border-2 border-white/10">
-                  <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-royal/30 to-aurora/30 text-3xl">
-                    ⚫
-                  </div>
-                  <div className="mb-3">
-                    <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white/80">
-                      Stage 02
-                    </span>
-                  </div>
-                  <h3 className="mb-2 text-xl font-bold text-white">Game of Go</h3>
-                  <p className="mb-4 text-sm leading-relaxed text-white/70">
-                    Strategic board game. Place stones to surround territory and capture opponent stones.
-                  </p>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">⚫ Black</span>
-                    <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">⚪ White</span>
-                  </div>
-                </div>
-                <div className="glass-panel p-6 text-white border-2 border-white/10">
-                  <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-aurora/30 to-pulse/30 text-3xl">
-                    🪙
-                  </div>
-                  <div className="mb-3">
-                    <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white/80">
-                      Stage 03
-                    </span>
-                  </div>
-                  <h3 className="mb-2 text-xl font-bold text-white">Matching Pennies</h3>
-                  <p className="mb-4 text-sm leading-relaxed text-white/70">
-                    Psychology game. One chooses, one guesses. If guess matches, guesser wins. First to 10 points wins.
-                  </p>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">👑 Heads</span>
-                    <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">🦅 Tails</span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+              )}
 
-          {/* Row 3: Active Game Display - Below Game Options */}
-          {currentGame?.activeStage && (
-            <div className="mb-6">
-              {currentGame.activeStage === 'ROCK_PAPER_SCISSORS' ? (
-                <RockPaperScissors />
-              ) : currentGame.activeStage === 'GAME_OF_GO' ? (
-                <GameOfGo />
-              ) : currentGame.activeStage === 'MATCHING_PENNIES' ? (
-                <MatchingPennies />
-              ) : null}
-            </div>
+              {/* Step 2: Game Lobby - Create Code (after game selection) */}
+              {(selectedGameType || currentGame?.code) && !currentGame?.activeStage && (
+                <div className="mb-6">
+                  <GameLobby 
+                    showArenaOnly={true} 
+                    selectedGameType={selectedGameType || currentGame?.activeStage}
+                    onGameTypeSelected={setSelectedGameType}
+                  />
+                </div>
+              )}
+
+              {/* Step 3: Game Selector (when both players connected) - Auto-start selected game */}
+              {currentGame?.guest && !currentGame?.activeStage && selectedGameType && (
+                <div className="mb-6">
+                  <GameSelector 
+                    currentGame={currentGame} 
+                    selectedGameType={selectedGameType}
+                    onGameStarted={() => {
+                      // Game started - keep selectedGameType locked
+                    }}
+                  />
+                </div>
+              )}
+              
+              {/* Show message if game is in progress and trying to create new game */}
+              {currentGame?.activeStage && (
+                <div className="mb-6 glass-panel p-4 text-white/70 text-center">
+                  <p>Game in progress. End the current game to create a new one.</p>
+                </div>
+              )}
+
+              {/* Row 3: Active Game Display - Below Game Options */}
+              {currentGame?.activeStage && (
+                <div className="mb-6">
+                  {currentGame.activeStage === 'ROCK_PAPER_SCISSORS' ? (
+                    <RockPaperScissors />
+                  ) : currentGame.activeStage === 'GAME_OF_GO' ? (
+                    <GameOfGo />
+                  ) : currentGame.activeStage === 'MATCHING_PENNIES' ? (
+                    <MatchingPennies />
+                  ) : null}
+                </div>
+              )}
+
+            </>
           )}
-
-          {/* Row 4: Game History - Below Active Game */}
-          <div className="mb-6">
-            <GameLobby showHistoryOnly={true} />
-          </div>
         </>
       )}
     </main>

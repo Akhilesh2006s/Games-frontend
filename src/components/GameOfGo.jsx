@@ -3,9 +3,10 @@ import useGameStore from '../store/useGameStore';
 import useAuthStore from '../store/useAuthStore';
 import api from '../services/api';
 import useSocket from '../hooks/useSocket';
+import RematchModal from './RematchModal';
 
 const GameOfGo = () => {
-  const { currentGame, statusMessage, setStatusMessage, setCurrentGame } = useGameStore();
+  const { selectedGameType, setSelectedGameType, currentGame, statusMessage, setStatusMessage, setCurrentGame } = useGameStore();
   const user = useAuthStore((state) => state.user);
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
@@ -23,6 +24,7 @@ const GameOfGo = () => {
   const [gamePhase, setGamePhase] = useState('PLAY'); // 'PLAY', 'SCORING', 'COMPLETE'
   const [finalScore, setFinalScore] = useState(null);
   const [timeInfo, setTimeInfo] = useState({ black: null, white: null });
+  const [rematchModal, setRematchModal] = useState({ isOpen: false, opponentName: '', requesterId: null, gameType: null, gameSettings: null });
 
   const { socket, isConnected, isJoined } = useSocket({
     enabled: Boolean(currentGame),
@@ -64,8 +66,12 @@ const GameOfGo = () => {
       if (data.game.goPhase) {
         setGamePhase(data.game.goPhase);
       }
-      if (data.game.goFinalScore) {
+      // Only set finalScore if game is actually complete
+      if (data.game.goFinalScore && (data.game.status === 'COMPLETE' || data.game.goPhase === 'COMPLETE')) {
         setFinalScore(data.game.goFinalScore);
+      } else if (data.game.status !== 'COMPLETE' && data.game.goPhase !== 'COMPLETE') {
+        // Clear finalScore if game is not complete
+        setFinalScore(null);
       }
       // Load time info if available
       if (data.game.goTimeControl && data.game.goTimeControl.mode !== 'none') {
@@ -385,7 +391,17 @@ const GameOfGo = () => {
 
     const handleTimeExpired = (payload) => {
       setGamePhase('COMPLETE');
-      setStatusMessage(payload.message || 'Time expired!');
+      // Create clear win reason message
+      const expiredColor = payload.expiredColor || 'unknown';
+      const winnerColor = expiredColor === 'black' ? 'white' : 'black';
+      const winnerName = winnerColor === 'black'
+        ? (currentGame?.host?.studentName || currentGame?.host?.username || 'Black')
+        : (currentGame?.guest?.studentName || currentGame?.guest?.username || 'White');
+      const expiredName = expiredColor === 'black'
+        ? (currentGame?.host?.studentName || currentGame?.host?.username || 'Black')
+        : (currentGame?.guest?.studentName || currentGame?.guest?.username || 'White');
+      const clearMessage = `${expiredName} (${expiredColor === 'black' ? 'Black' : 'White'}) ran out of time. ${winnerName} (${winnerColor === 'black' ? 'Black' : 'White'}) wins.`;
+      setStatusMessage(payload.message || clearMessage);
       refreshGameDetails();
     };
 
@@ -414,6 +430,55 @@ const GameOfGo = () => {
     });
     socket.on('game:error', handleError);
 
+    // Rematch handlers
+    const handleRematchRequest = (payload) => {
+      const opponentName = payload.requesterName || 'Opponent';
+      setRematchModal({
+        isOpen: true,
+        opponentName,
+        requesterId: payload.requesterId,
+        gameType: payload.gameType,
+        gameSettings: payload.gameSettings,
+      });
+    };
+
+    const handleRematchAccepted = async (payload) => {
+      setRematchModal({ isOpen: false, opponentName: '', requesterId: null, gameType: null, gameSettings: null });
+      if (payload.game) {
+        setCurrentGame(payload.game);
+        // Set game type for auto-start
+        if (payload.gameType) {
+          setSelectedGameType(payload.gameType);
+        } else if (!selectedGameType) {
+          setSelectedGameType('GAME_OF_GO');
+        }
+        // Reset game state
+        setFinalScore(null);
+        setGamePhase('PLAY');
+        setBoard(() => {
+          const size = Number(payload.game?.goBoardSize || payload.gameSettings?.goBoardSize || 9);
+          return Array(size).fill(null).map(() => Array(size).fill(null));
+        });
+        setCapturedBlack(0);
+        setCapturedWhite(0);
+        setCurrentTurn('black');
+        setStatusMessage('Rematch started! Both players connected.');
+        // Join new game room
+        if (socket && payload.newCode) {
+          socket.emit('joinGame', { code: payload.newCode });
+        }
+      }
+    };
+
+    const handleRematchRejected = (payload) => {
+      setRematchModal({ isOpen: false, opponentName: '', requesterId: null, gameType: null, gameSettings: null });
+      setStatusMessage(`${payload.rejectorName || 'Opponent'} declined the rematch.`);
+    };
+
+    socket.on('rematch:requested', handleRematchRequest);
+    socket.on('rematch:accepted', handleRematchAccepted);
+    socket.on('rematch:rejected', handleRematchRejected);
+
     return () => {
       socket.off('goMove', handleMove);
       socket.off('goPass', handlePass);
@@ -425,8 +490,11 @@ const GameOfGo = () => {
       socket.off('game:guest_joined', handleGuestJoined);
       socket.off('game:started');
       socket.off('game:error', handleError);
+      socket.off('rematch:requested', handleRematchRequest);
+      socket.off('rematch:accepted', handleRematchAccepted);
+      socket.off('rematch:rejected', handleRematchRejected);
     };
-  }, [currentGame?.guest, refreshGameDetails, setStatusMessage, socket, myColor]);
+  }, [currentGame?.guest, refreshGameDetails, setStatusMessage, setCurrentGame, socket, myColor]);
 
   // Get intersection coordinates from mouse position
   const getIntersectionFromMouse = useCallback((e) => {
@@ -633,7 +701,7 @@ const GameOfGo = () => {
 
     return (
       <div className="text-center">
-        <p className="text-xs uppercase tracking-[0.4em] text-white/50 mb-1">
+        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/70 mb-1">
           {playerName} ({color === 'black' ? 'Black' : 'White'})
         </p>
         <div className={`text-3xl font-bold font-mono transition-colors ${
@@ -685,7 +753,7 @@ const GameOfGo = () => {
         <div className="mt-4 flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-6 py-4">
           <div className="flex-1">
             <p className="text-xs uppercase tracking-wide text-white/50 mb-1">⚫ Black</p>
-            <p className="text-sm font-semibold text-white mb-2">
+            <p className="text-base font-semibold text-white mb-2">
               {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'}
             </p>
             <PlayerClock
@@ -694,11 +762,11 @@ const GameOfGo = () => {
               isActive={currentTurn === 'black' && gamePhase === 'PLAY'}
               playerName={currentGame?.host?.studentName || currentGame?.host?.username || 'Host'}
             />
-            <p className="text-lg font-bold text-white mt-2">
-              Captured: {capturedWhite}
+            <p className="text-base font-semibold text-white/80 mt-2">
+              Captured: <span className="text-aurora">{capturedBlack}</span>
             </p>
           </div>
-          <div className="text-center px-4">
+          <div className="text-center px-6">
             <p className="text-xs text-white/60 mb-1">Current Turn</p>
             <p className={`text-3xl font-semibold ${currentTurn === 'black' ? 'text-white' : 'text-white/40'}`}>
               {currentTurn === 'black' ? '⚫' : '⚪'}
@@ -707,9 +775,9 @@ const GameOfGo = () => {
               {isMyTurn ? 'Your turn!' : 'Opponent\'s turn'}
             </p>
           </div>
-          <div className="flex-1">
+          <div className="flex-1 ml-4 text-right">
             <p className="text-xs uppercase tracking-wide text-white/50 mb-1">⚪ White</p>
-            <p className="text-sm font-semibold text-white mb-2">
+            <p className="text-base font-semibold text-white mb-2">
               {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
             </p>
             <PlayerClock
@@ -718,8 +786,8 @@ const GameOfGo = () => {
               isActive={currentTurn === 'white' && gamePhase === 'PLAY'}
               playerName={currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
             />
-            <p className="text-lg font-bold text-white mt-2">
-              Captured: {capturedBlack}
+            <p className="text-base font-semibold text-white/80 mt-2">
+              Captured: <span className="text-aurora">{capturedWhite}</span>
             </p>
           </div>
         </div>
@@ -787,6 +855,33 @@ const GameOfGo = () => {
               {finalScore.winner === null && (
                 <p className="text-xl font-semibold text-white mt-2">It's a Draw!</p>
               )}
+              {/* Display clear win reason */}
+              {statusMessage && (
+                <p className="text-sm text-white/70 mt-3 italic">
+                  {statusMessage.includes('ran out of time') || statusMessage.includes('Time expired') 
+                    ? statusMessage.replace(/Black|White/g, (match) => {
+                        const isBlack = match === 'Black';
+                        const playerName = isBlack 
+                          ? (currentGame?.host?.studentName || currentGame?.host?.username || 'Black')
+                          : (currentGame?.guest?.studentName || currentGame?.guest?.username || 'White');
+                        return playerName;
+                      })
+                    : statusMessage
+                  }
+                </p>
+              )}
+              {/* Rematch Button */}
+              <button
+                onClick={() => {
+                  if (socket && currentGame?.code) {
+                    socket.emit('rematch:request', { code: currentGame.code });
+                    setStatusMessage('Rematch request sent. Waiting for opponent...');
+                  }
+                }}
+                className="mt-4 rounded-lg bg-gradient-to-r from-aurora/20 to-royal/20 border border-aurora/50 px-6 py-3 text-sm font-bold text-white hover:from-aurora/30 hover:to-royal/30 transition"
+              >
+                Rematch
+              </button>
             </div>
           )}
         </div>
@@ -801,15 +896,26 @@ const GameOfGo = () => {
           <p className="text-sm font-semibold">Pass</p>
           <p className="text-xs text-white/60 mt-1">Skip your turn</p>
         </button>
-        {gamePhase !== 'COMPLETE' && currentGame?.guest && (
-          <button
-            onClick={handleEndGame}
-            disabled={!isJoined || gamePhase === 'COMPLETE'}
-            className="flex-1 rounded-lg border border-red-500/50 bg-red-500/10 px-6 py-3 text-sm font-semibold text-red-400 hover:bg-red-500/20 transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            End Game
-          </button>
-        )}
+        {gamePhase !== 'COMPLETE' && currentGame?.guest && (() => {
+          // Check if any moves have been made
+          const hasAnyMoves = capturedBlack > 0 || capturedWhite > 0 || 
+            (board && board.some(row => row && row.some(cell => cell !== null)));
+          
+          // Only show Resign button if at least one move has been made
+          if (!hasAnyMoves) {
+            return null;
+          }
+          
+          return (
+            <button
+              onClick={handleEndGame}
+              disabled={!isJoined || gamePhase === 'COMPLETE'}
+              className="flex-1 rounded-lg border border-red-500/50 bg-red-500/10 px-6 py-3 text-sm font-semibold text-red-400 hover:bg-red-500/20 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Resign
+            </button>
+          );
+        })()}
       </div>
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -826,24 +932,24 @@ const GameOfGo = () => {
         </ul>
       </div>
 
-      {/* Match Archive */}
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.4em] text-white/50 mb-1">MATCH ARCHIVE</p>
-            <p className="text-sm text-white/70">Recent runs</p>
-          </div>
-          <button
-            onClick={refreshGameDetails}
-            className="rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold text-white transition hover:bg-white/20"
-          >
-            REFRESH
-          </button>
-        </div>
-        <div className="text-sm text-white/60 text-center py-4">
-          No archived matches yet. Complete games will appear here.
-        </div>
-      </div>
+      <RematchModal
+        isOpen={rematchModal.isOpen}
+        opponentName={rematchModal.opponentName}
+        onAccept={() => {
+          if (socket && currentGame?.code && rematchModal.requesterId) {
+            socket.emit('rematch:accept', { code: currentGame.code, requesterId: rematchModal.requesterId });
+          }
+        }}
+        onReject={() => {
+          if (socket && currentGame?.code) {
+            socket.emit('rematch:reject', { code: currentGame.code });
+          }
+          setRematchModal({ isOpen: false, opponentName: '', requesterId: null, gameType: null, gameSettings: null });
+        }}
+        onClose={() => {
+          setRematchModal({ isOpen: false, opponentName: '', requesterId: null, gameType: null, gameSettings: null });
+        }}
+      />
     </section>
   );
 };

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import api from '../services/api';
 import useGameStore from '../store/useGameStore';
 
-const GameSelector = ({ currentGame, onGameSelected }) => {
+const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameStarted }) => {
   const { setCurrentGame, setStatusMessage } = useGameStore();
   const [loading, setLoading] = useState({ rps: false, go: false, pennies: false });
   const [goBoardSize, setGoBoardSize] = useState(9);
@@ -17,6 +17,8 @@ const GameSelector = ({ currentGame, onGameSelected }) => {
     byoYomiPeriods: 5, // 5 periods for Japanese
     preset: null, // 'BLITZ_A', 'BLITZ_B', 'RAPID', or null for custom
   });
+  const [rpsTimePerMove, setRpsTimePerMove] = useState(15); // 15 seconds per move (default)
+  const [penniesTimePerMove, setPenniesTimePerMove] = useState(15); // 15 seconds per move (default)
 
   // Keep ref in sync with state
   useEffect(() => {
@@ -51,6 +53,7 @@ const GameSelector = ({ currentGame, onGameSelected }) => {
       if (gameType === 'MATCHING_PENNIES') {
         endpoint = '/games/start-pennies';
         message = 'Matching Pennies started! First to 10 points wins.';
+        requestBody.timePerMove = penniesTimePerMove || 15; // Default to 15 seconds
       } else if (gameType === 'GAME_OF_GO') {
         endpoint = '/games/start-go';
         message = 'Game of Go started! Place stones to capture territory.';
@@ -72,6 +75,7 @@ const GameSelector = ({ currentGame, onGameSelected }) => {
       } else {
         endpoint = '/games/start-rps';
         message = 'Rock Paper Scissors started! First to 10 points wins.';
+        requestBody.timePerMove = rpsTimePerMove || 15; // Default to 15 seconds
       }
       
       const { data } = await api.post(endpoint, requestBody);
@@ -153,7 +157,9 @@ const GameSelector = ({ currentGame, onGameSelected }) => {
 
       {/* Game Cards Grid - Always 3 columns */}
       <div className="relative grid gap-6 grid-cols-1 md:grid-cols-3">
-        {games.map((game) => {
+        {games
+          .filter(game => !selectedGameType || game.id === selectedGameType) // Only show selected game if specified
+          .map((game) => {
           const isActive = currentGame?.activeStage === game.id;
           const isLoading = loading[game.loadingKey];
           const isHovered = hoveredGame === game.id;
@@ -166,12 +172,11 @@ const GameSelector = ({ currentGame, onGameSelected }) => {
               className="group relative"
             >
               <div
-                onClick={() => !isDisabled && !game.hasOptions && !isGameInProgress && handleStartGame(game.id)}
                 className={`relative h-full w-full overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-300 ${
                   isActive
                     ? 'border-aurora bg-gradient-to-br from-aurora/20 via-aurora/10 to-transparent shadow-[0_0_30px_rgba(83,255,227,0.3)]'
                     : `border-white/10 bg-gradient-to-br ${game.gradient} hover:border-aurora/50 hover:shadow-[0_0_25px_rgba(83,255,227,0.2)]`
-                } ${(isDisabled || (isGameInProgress && !isActive)) && !isActive ? 'opacity-50 cursor-not-allowed' : game.hasOptions ? '' : 'cursor-pointer hover:-translate-y-1'}`}
+                } ${(isDisabled || (isGameInProgress && !isActive)) && !isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 {/* Active indicator glow */}
                 {isActive && (
@@ -205,7 +210,7 @@ const GameSelector = ({ currentGame, onGameSelected }) => {
                 {/* Game-specific options - Board Size Selector */}
                 {game.hasOptions && currentGame?.activeStage !== 'GAME_OF_GO' && (
                   <div className="mb-4">
-                    <label className="mb-3 block text-xs font-semibold uppercase tracking-wider text-white/50">
+                    <label className={`mb-3 block text-xs font-semibold uppercase tracking-wider ${isGameInProgress ? 'text-white/30' : 'text-white/50'}`}>
                       Board Size
                     </label>
                     <div className="flex flex-row flex-wrap gap-2">
@@ -213,14 +218,19 @@ const GameSelector = ({ currentGame, onGameSelected }) => {
                         <button
                           key={size}
                           type="button"
+                          disabled={isGameInProgress}
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            console.log('Board size button clicked - Setting to:', size);
-                            setGoBoardSize(size);
+                            if (!isGameInProgress) {
+                              console.log('Board size button clicked - Setting to:', size);
+                              setGoBoardSize(size);
+                            }
                           }}
                           className={`flex-1 min-w-[80px] rounded-lg border-2 px-3 py-2.5 text-xs sm:text-sm font-bold transition-all ${
-                            goBoardSize === size
+                            isGameInProgress
+                              ? 'border-white/10 bg-white/5 text-white/30 cursor-not-allowed opacity-50'
+                              : goBoardSize === size
                               ? 'border-aurora bg-aurora/30 text-white shadow-[0_0_15px_rgba(83,255,227,0.4)] scale-105'
                               : 'border-white/20 bg-white/5 text-white/70 hover:border-aurora/50 hover:bg-aurora/10 hover:text-white'
                           }`}
@@ -231,35 +241,48 @@ const GameSelector = ({ currentGame, onGameSelected }) => {
                     </div>
                     {/* Time Control Settings */}
                     <div className="mt-4 space-y-3">
-                      <label className="flex items-center gap-2 cursor-pointer">
+                      <label className={`flex items-center gap-2 ${isGameInProgress ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
                         <input
                           type="checkbox"
                           checked={timeControl.enabled}
-                          onChange={(e) => setTimeControl({ ...timeControl, enabled: e.target.checked })}
-                          className="rounded border-white/20"
-                          onClick={(e) => e.stopPropagation()}
+                          disabled={isGameInProgress}
+                          onChange={(e) => {
+                            if (!isGameInProgress) {
+                              setTimeControl({ ...timeControl, enabled: e.target.checked });
+                            }
+                          }}
+                          className="rounded border-white/20 disabled:opacity-50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (isGameInProgress) e.preventDefault();
+                          }}
                         />
-                        <span className="text-xs font-semibold uppercase tracking-wider text-white/50">
+                        <span className={`text-xs font-semibold uppercase tracking-wider ${isGameInProgress ? 'text-white/30' : 'text-white/50'}`}>
                           Enable Time Control
                         </span>
                       </label>
                       {timeControl.enabled && (
-                        <div className="space-y-3 pl-6 border-l-2 border-white/10">
+                        <div className={`space-y-3 pl-6 border-l-2 ${isGameInProgress ? 'border-white/5' : 'border-white/10'}`}>
                           {/* Time Control Mode Selection */}
                           <div>
-                            <label className="text-xs font-semibold uppercase tracking-wider text-white/50 block mb-2">
+                            <label className={`text-xs font-semibold uppercase tracking-wider block mb-2 ${isGameInProgress ? 'text-white/30' : 'text-white/50'}`}>
                               Time System
                             </label>
                             <div className="flex gap-2">
                               <button
                                 type="button"
+                                disabled={isGameInProgress}
                                 onClick={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
-                                  setTimeControl({ ...timeControl, mode: 'fischer', preset: null });
+                                  if (!isGameInProgress) {
+                                    setTimeControl({ ...timeControl, mode: 'fischer', preset: null });
+                                  }
                                 }}
                                 className={`flex-1 rounded-lg border-2 px-3 py-2 text-xs font-bold transition-all ${
-                                  timeControl.mode === 'fischer'
+                                  isGameInProgress
+                                    ? 'border-white/10 bg-white/5 text-white/30 cursor-not-allowed opacity-50'
+                                    : timeControl.mode === 'fischer'
                                     ? 'border-aurora bg-aurora/30 text-white'
                                     : 'border-white/20 bg-white/5 text-white/70 hover:border-white/40'
                                 }`}
@@ -268,13 +291,18 @@ const GameSelector = ({ currentGame, onGameSelected }) => {
                               </button>
                               <button
                                 type="button"
+                                disabled={isGameInProgress}
                                 onClick={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
-                                  setTimeControl({ ...timeControl, mode: 'japanese', preset: null });
+                                  if (!isGameInProgress) {
+                                    setTimeControl({ ...timeControl, mode: 'japanese', preset: null });
+                                  }
                                 }}
                                 className={`flex-1 rounded-lg border-2 px-3 py-2 text-xs font-bold transition-all ${
-                                  timeControl.mode === 'japanese'
+                                  isGameInProgress
+                                    ? 'border-white/10 bg-white/5 text-white/30 cursor-not-allowed opacity-50'
+                                    : timeControl.mode === 'japanese'
                                     ? 'border-aurora bg-aurora/30 text-white'
                                     : 'border-white/20 bg-white/5 text-white/70 hover:border-white/40'
                                 }`}
@@ -293,19 +321,24 @@ const GameSelector = ({ currentGame, onGameSelected }) => {
                               <div className="grid grid-cols-3 gap-2">
                                 <button
                                   type="button"
+                                  disabled={isGameInProgress}
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    setTimeControl({
-                                      ...timeControl,
-                                      mode: 'fischer',
-                                      mainTime: 30,
-                                      increment: 5,
-                                      preset: 'BLITZ_A',
-                                    });
+                                    if (!isGameInProgress) {
+                                      setTimeControl({
+                                        ...timeControl,
+                                        mode: 'fischer',
+                                        mainTime: 30,
+                                        increment: 5,
+                                        preset: 'BLITZ_A',
+                                      });
+                                    }
                                   }}
                                   className={`rounded-lg border-2 px-3 py-2 text-xs font-bold transition-all ${
-                                    timeControl.preset === 'BLITZ_A'
+                                    isGameInProgress
+                                      ? 'border-white/10 bg-white/5 text-white/30 cursor-not-allowed opacity-50'
+                                      : timeControl.preset === 'BLITZ_A'
                                       ? 'border-aurora bg-aurora/30 text-white'
                                       : 'border-white/20 bg-white/5 text-white/70 hover:border-white/40'
                                   }`}
@@ -316,19 +349,24 @@ const GameSelector = ({ currentGame, onGameSelected }) => {
                                 </button>
                                 <button
                                   type="button"
+                                  disabled={isGameInProgress}
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    setTimeControl({
-                                      ...timeControl,
-                                      mode: 'fischer',
-                                      mainTime: 120,
-                                      increment: 7,
-                                      preset: 'BLITZ_B',
-                                    });
+                                    if (!isGameInProgress) {
+                                      setTimeControl({
+                                        ...timeControl,
+                                        mode: 'fischer',
+                                        mainTime: 120,
+                                        increment: 7,
+                                        preset: 'BLITZ_B',
+                                      });
+                                    }
                                   }}
                                   className={`rounded-lg border-2 px-3 py-2 text-xs font-bold transition-all ${
-                                    timeControl.preset === 'BLITZ_B'
+                                    isGameInProgress
+                                      ? 'border-white/10 bg-white/5 text-white/30 cursor-not-allowed opacity-50'
+                                      : timeControl.preset === 'BLITZ_B'
                                       ? 'border-aurora bg-aurora/30 text-white'
                                       : 'border-white/20 bg-white/5 text-white/70 hover:border-white/40'
                                   }`}
@@ -339,19 +377,24 @@ const GameSelector = ({ currentGame, onGameSelected }) => {
                                 </button>
                                 <button
                                   type="button"
+                                  disabled={isGameInProgress}
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    setTimeControl({
-                                      ...timeControl,
-                                      mode: 'fischer',
-                                      mainTime: 180,
-                                      increment: 10,
-                                      preset: 'RAPID',
-                                    });
+                                    if (!isGameInProgress) {
+                                      setTimeControl({
+                                        ...timeControl,
+                                        mode: 'fischer',
+                                        mainTime: 180,
+                                        increment: 10,
+                                        preset: 'RAPID',
+                                      });
+                                    }
                                   }}
                                   className={`rounded-lg border-2 px-3 py-2 text-xs font-bold transition-all ${
-                                    timeControl.preset === 'RAPID'
+                                    isGameInProgress
+                                      ? 'border-white/10 bg-white/5 text-white/30 cursor-not-allowed opacity-50'
+                                      : timeControl.preset === 'RAPID'
                                       ? 'border-aurora bg-aurora/30 text-white'
                                       : 'border-white/20 bg-white/5 text-white/70 hover:border-white/40'
                                   }`}
@@ -374,12 +417,15 @@ const GameSelector = ({ currentGame, onGameSelected }) => {
                               min="1"
                               max="3600"
                               value={timeControl.mainTime}
+                              disabled={isGameInProgress}
                               onChange={(e) => {
-                                const seconds = parseInt(e.target.value) || 0;
-                                setTimeControl({ ...timeControl, mainTime: seconds });
+                                if (!isGameInProgress) {
+                                  const seconds = parseInt(e.target.value) || 0;
+                                  setTimeControl({ ...timeControl, mainTime: seconds });
+                                }
                               }}
                               onClick={(e) => e.stopPropagation()}
-                              className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white"
+                              className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white disabled:opacity-50 disabled:cursor-not-allowed"
                             />
                           </div>
 
@@ -394,12 +440,15 @@ const GameSelector = ({ currentGame, onGameSelected }) => {
                                 min="0"
                                 max="60"
                                 value={timeControl.increment}
+                                disabled={isGameInProgress}
                                 onChange={(e) => {
-                                  const increment = parseInt(e.target.value) || 0;
-                                  setTimeControl({ ...timeControl, increment });
+                                  if (!isGameInProgress) {
+                                    const increment = parseInt(e.target.value) || 0;
+                                    setTimeControl({ ...timeControl, increment });
+                                  }
                                 }}
                                 onClick={(e) => e.stopPropagation()}
-                                className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white"
+                                className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white disabled:opacity-50 disabled:cursor-not-allowed"
                               />
                               <p className="text-xs text-white/50 mt-1">
                                 Format: {timeControl.mainTime}s + {timeControl.increment}s
@@ -419,16 +468,19 @@ const GameSelector = ({ currentGame, onGameSelected }) => {
                                   min="1"
                                   max="300"
                                   value={timeControl.byoYomiTime}
+                                  disabled={isGameInProgress}
                                   onChange={(e) => {
-                                    const seconds = parseInt(e.target.value) || 1;
-                                    setTimeControl({ ...timeControl, byoYomiTime: seconds });
+                                    if (!isGameInProgress) {
+                                      const seconds = parseInt(e.target.value) || 1;
+                                      setTimeControl({ ...timeControl, byoYomiTime: seconds });
+                                    }
                                   }}
                                   onClick={(e) => e.stopPropagation()}
-                                  className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white"
+                                  className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white disabled:opacity-50 disabled:cursor-not-allowed"
                                 />
                               </div>
                               <div>
-                                <label className="text-xs text-white/60 block mb-1">
+                                <label className={`text-xs block mb-1 ${isGameInProgress ? 'text-white/30' : 'text-white/60'}`}>
                                   Number of Periods
                                 </label>
                                 <input
@@ -436,12 +488,15 @@ const GameSelector = ({ currentGame, onGameSelected }) => {
                                   min="1"
                                   max="10"
                                   value={timeControl.byoYomiPeriods}
+                                  disabled={isGameInProgress}
                                   onChange={(e) => {
-                                    const periods = parseInt(e.target.value) || 1;
-                                    setTimeControl({ ...timeControl, byoYomiPeriods: periods });
+                                    if (!isGameInProgress) {
+                                      const periods = parseInt(e.target.value) || 1;
+                                      setTimeControl({ ...timeControl, byoYomiPeriods: periods });
+                                    }
                                   }}
                                   onClick={(e) => e.stopPropagation()}
-                                  className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white"
+                                  className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white disabled:opacity-50 disabled:cursor-not-allowed"
                                 />
                                 <p className="text-xs text-white/50 mt-1">
                                   Format: {timeControl.mainTime}s + {timeControl.byoYomiPeriods}×{timeControl.byoYomiTime}s
@@ -471,7 +526,7 @@ const GameSelector = ({ currentGame, onGameSelected }) => {
                 )}
 
                 {/* Features */}
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3 mb-4">
                   {game.features.map((feature, idx) => (
                     <span
                       key={idx}
@@ -482,9 +537,35 @@ const GameSelector = ({ currentGame, onGameSelected }) => {
                   ))}
                 </div>
 
+                {/* Time Control for RPS and Matching Pennies - Fixed at 15 seconds */}
+                {!game.hasOptions && (
+                  <div className="mt-4">
+                    <p className="text-xs text-white/50">
+                      Players have 15 seconds per move
+                    </p>
+                  </div>
+                )}
+
+                {/* Start Game Button for games without options (RPS and Matching Pennies) */}
+                {!game.hasOptions && (
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (!isDisabled && !isGameInProgress) {
+                        handleStartGame(game.id);
+                      }
+                    }}
+                    disabled={isDisabled || isGameInProgress}
+                    className="mt-4 w-full rounded-lg bg-gradient-to-r from-aurora/20 to-royal/20 border border-aurora/50 px-4 py-2.5 text-sm font-bold text-white transition-all hover:from-aurora/30 hover:to-royal/30 hover:shadow-[0_0_15px_rgba(83,255,227,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Start Game
+                  </button>
+                )}
+
                 {/* Hover effect overlay */}
                 {!isActive && isHovered && !game.hasOptions && (
-                  <div className="absolute inset-0 bg-gradient-to-br from-aurora/5 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-aurora/5 to-transparent pointer-events-none" />
                 )}
 
                 {/* Loading overlay */}
@@ -497,10 +578,7 @@ const GameSelector = ({ currentGame, onGameSelected }) => {
               </div>
             )}
 
-                {/* Shine effect on hover */}
-                {!game.hasOptions && (
-                  <div className={`absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-1000 ${isHovered ? 'translate-x-full' : ''}`} />
-                )}
+                {/* Shine effect on hover - removed for games without options since they now have buttons */}
               </div>
             </div>
           );
