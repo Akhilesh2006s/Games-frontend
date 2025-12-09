@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import useGameStore from '../store/useGameStore';
 import useAuthStore from '../store/useAuthStore';
 import api from '../services/api';
@@ -28,6 +29,7 @@ const formatDuration = (seconds) => {
 const RockPaperScissors = () => {
   const { selectedGameType, setSelectedGameType, currentGame, statusMessage, setStatusMessage, setCurrentGame, resetGame } = useGameStore();
   const user = useAuthStore((state) => state.user);
+  const navigate = useNavigate();
   const [result, setResult] = useState(null);
   const [lockedMove, setLockedMove] = useState('');
   const [opponentLock, setOpponentLock] = useState('');
@@ -60,10 +62,10 @@ const RockPaperScissors = () => {
   const yourHandDisplay = useMemo(() => {
     if (result) {
       const resolvedMove = isHost ? result.hostMove : result.guestMove;
-      return handMap[resolvedMove] || '🎯';
+      return handMap[resolvedMove] || '⏳';
     }
     if (lockedMove) return handMap[lockedMove];
-    return '🎯';
+    return '⏳';
   }, [isHost, lockedMove, result]);
 
   const opponentHandDisplay = useMemo(() => {
@@ -164,6 +166,7 @@ const RockPaperScissors = () => {
           ? (currentGame?.host?.studentName || currentGame?.host?.username)
           : (currentGame?.guest?.studentName || currentGame?.guest?.username);
         setStatusMessage(`${winnerName} wins the match! First to 10 points.`);
+        // Don't clear result when game is complete - keep it visible for both players
       } else {
         setStatusMessage(
           payload.result === 'draw'
@@ -174,7 +177,7 @@ const RockPaperScissors = () => {
         const resultTimeout = setTimeout(() => {
           // Only clear if no new result has been set (check if result is still the same)
           setResult((prevResult) => {
-            if (prevResult && prevResult.roundNumber === payload.roundNumber) {
+            if (prevResult && prevResult.roundNumber === payload.roundNumber && !prevResult.isGameComplete) {
               return null;
             }
             return prevResult;
@@ -484,41 +487,52 @@ const RockPaperScissors = () => {
         <p className="text-white/50">{opponentLock || 'Opponent pending'}</p>
       </div>
 
-      {result && (
+      {(result || currentGame?.status === 'COMPLETE') && (
         <div className={`rounded-3xl border p-6 text-center ${
-          result.isGameComplete 
+          (result?.isGameComplete || currentGame?.status === 'COMPLETE')
             ? 'border-aurora/60 bg-aurora/20' 
             : 'border-aurora/40 bg-aurora/10'
         }`}>
           <p className="text-xs uppercase tracking-[0.4em] text-white/60">
-            {result.isGameComplete ? 'Match Complete' : 'Round Recap'}
+            {(result?.isGameComplete || currentGame?.status === 'COMPLETE') ? 'Match Complete' : 'Round Recap'}
           </p>
-          {result.isGameComplete ? (
+          {(result?.isGameComplete || currentGame?.status === 'COMPLETE') ? (
             <>
               <p className="text-4xl font-display text-aurora mt-2">
-                {result.winner === 'host' 
+                {(result?.winner || (currentGame?.hostScore >= 10 ? 'host' : currentGame?.guestScore >= 10 ? 'guest' : null)) === 'host' 
                   ? `${currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} Wins!` 
-                  : `${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} Wins!`}
+                  : (result?.winner || (currentGame?.hostScore >= 10 ? 'host' : currentGame?.guestScore >= 10 ? 'guest' : null)) === 'guest'
+                    ? `${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} Wins!`
+                    : 'Match Complete!'}
               </p>
               <p className="text-white/70 mt-2">
-                Final Score: {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} {result.hostScore} - {result.guestScore} {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
+                Final Score: {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} {result?.hostScore || currentGame?.hostScore || 0} - {result?.guestScore || currentGame?.guestScore || 0} {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
               </p>
               <div className="flex gap-4 mt-4 justify-center">
                 <button
                   onClick={async () => {
                     try {
-                      // Create new game for rematch with same game type
-                      const { data } = await api.post('/games/create');
-                      setCurrentGame(data.game);
-                      // Keep the same game type selected for auto-start
-                      if (!selectedGameType) {
-                        setSelectedGameType('ROCK_PAPER_SCISSORS');
+                      // Request rematch - use socket to send rematch request
+                      if (socket && currentGame?.code) {
+                        socket.emit('rematch:request', { 
+                          code: currentGame.code,
+                          gameType: 'ROCK_PAPER_SCISSORS',
+                          gameSettings: { timePerMove: 15 }
+                        });
+                        setStatusMessage('Rematch request sent. Waiting for opponent...');
+                      } else {
+                        // Fallback: create new game for rematch
+                        const { data } = await api.post('/games/create');
+                        setCurrentGame(data.game);
+                        if (!selectedGameType) {
+                          setSelectedGameType('ROCK_PAPER_SCISSORS');
+                        }
+                        setStatusMessage('Rematch game created! Share the code with your opponent.');
+                        setResult(null);
+                        setScores({ host: 0, guest: 0 });
+                        setLockedMove('');
+                        setOpponentLock('');
                       }
-                      setStatusMessage('Rematch game created! Share the code with your opponent.');
-                      setResult(null);
-                      setScores({ host: 0, guest: 0 });
-                      setLockedMove('');
-                      setOpponentLock('');
                     } catch (err) {
                       setStatusMessage(err.response?.data?.message || 'Failed to create rematch');
                     }
@@ -535,10 +549,12 @@ const RockPaperScissors = () => {
                     setScores({ host: 0, guest: 0 });
                     setLockedMove('');
                     setOpponentLock('');
+                    // Navigate to arena page (home)
+                    navigate('/arena', { replace: true });
                   }}
                   className="rounded-lg border border-white/20 bg-white/5 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10 transition"
                 >
-                  Go Back to Arena
+                  Exit to Arena
                 </button>
               </div>
             </>
@@ -560,6 +576,61 @@ const RockPaperScissors = () => {
               </p>
             </>
           )}
+        </div>
+      )}
+
+      {/* Show buttons when game is complete, even if result is not set */}
+      {currentGame?.status === 'COMPLETE' && !result && (
+        <div className="rounded-3xl border border-aurora/60 bg-aurora/20 p-6 text-center">
+          <p className="text-xs uppercase tracking-[0.4em] text-white/60">Match Complete</p>
+          <p className="text-4xl font-display text-aurora mt-2">
+            {currentGame?.hostScore >= 10 
+              ? `${currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} Wins!` 
+              : currentGame?.guestScore >= 10
+                ? `${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} Wins!`
+                : 'Match Complete!'}
+          </p>
+          <p className="text-white/70 mt-2">
+            Final Score: {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} {currentGame?.hostScore || 0} - {currentGame?.guestScore || 0} {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
+          </p>
+          <div className="flex gap-4 mt-4 justify-center">
+            <button
+              onClick={async () => {
+                try {
+                  if (socket && currentGame?.code) {
+                    socket.emit('rematch:request', { 
+                      code: currentGame.code,
+                      gameType: 'ROCK_PAPER_SCISSORS',
+                      gameSettings: { timePerMove: 15 }
+                    });
+                    setStatusMessage('Rematch request sent. Waiting for opponent...');
+                  } else {
+                    const { data } = await api.post('/games/create');
+                    setCurrentGame(data.game);
+                    if (!selectedGameType) {
+                      setSelectedGameType('ROCK_PAPER_SCISSORS');
+                    }
+                    setStatusMessage('Rematch game created! Share the code with your opponent.');
+                  }
+                } catch (err) {
+                  setStatusMessage(err.response?.data?.message || 'Failed to create rematch');
+                }
+              }}
+              className="rounded-lg bg-gradient-to-r from-aurora/20 to-royal/20 border border-aurora/50 px-6 py-3 text-sm font-bold text-white hover:from-aurora/30 hover:to-royal/30 transition"
+            >
+              Rematch
+            </button>
+            <button
+              onClick={() => {
+                resetGame();
+                setSelectedGameType(null);
+                navigate('/arena', { replace: true });
+              }}
+              className="rounded-lg border border-white/20 bg-white/5 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10 transition"
+            >
+              Exit to Arena
+            </button>
+          </div>
         </div>
       )}
 

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import useGameStore from '../store/useGameStore';
 import useAuthStore from '../store/useAuthStore';
 import api from '../services/api';
@@ -21,6 +22,7 @@ const formatDuration = (seconds) => {
 const MatchingPennies = () => {
   const { selectedGameType, setSelectedGameType, currentGame, statusMessage, setStatusMessage, setCurrentGame, resetGame } = useGameStore();
   const user = useAuthStore((state) => state.user);
+  const navigate = useNavigate();
   const [result, setResult] = useState(null);
   const [lockedChoice, setLockedChoice] = useState('');
   const [opponentLock, setOpponentLock] = useState('');
@@ -119,6 +121,7 @@ const MatchingPennies = () => {
           ? (currentGame?.host?.studentName || currentGame?.host?.username)
           : (currentGame?.guest?.studentName || currentGame?.guest?.username);
         setStatusMessage(`${winnerName} wins the Matching Pennies match! First to 10 points.`);
+        // Don't clear result when game is complete - keep it visible for both players
       } else {
         const winnerText = payload.hostWon
           ? `Both chose the same. ${currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} wins!`
@@ -126,11 +129,11 @@ const MatchingPennies = () => {
         setStatusMessage(
           `Round ${payload.roundNumber} complete. ${winnerText} Score: ${currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} ${payload.hostScore} - ${payload.guestScore} ${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}`
         );
-        // Clear result after 8 seconds to allow players to see the result, or when a new move is played
+        // Clear result after 3 seconds to allow players to see the result, or when a new move is played
         const resultTimeout = setTimeout(() => {
           // Only clear if no new result has been set (check if result is still the same)
           setResult((prevResult) => {
-            if (prevResult && prevResult.roundNumber === payload.roundNumber) {
+            if (prevResult && prevResult.roundNumber === payload.roundNumber && !prevResult.isGameComplete) {
               return null;
             }
             return prevResult;
@@ -142,7 +145,7 @@ const MatchingPennies = () => {
             }
             return prevMsg;
           });
-        }, 8000);
+        }, 3000);
         
         // Store timeout ID to clear if needed
         return () => clearTimeout(resultTimeout);
@@ -447,24 +450,26 @@ const MatchingPennies = () => {
         })}
       </div>
 
-      {result && (
+      {(result || currentGame?.status === 'COMPLETE') && (
         <div className={`rounded-3xl border p-6 text-center ${
-          result.isGameComplete 
+          (result?.isGameComplete || currentGame?.status === 'COMPLETE')
             ? 'border-aurora/60 bg-aurora/20' 
             : 'border-aurora/40 bg-aurora/10'
         }`}>
           <p className="text-xs uppercase tracking-[0.4em] text-white/60">
-            {result.isGameComplete ? 'Match Complete' : 'Round Recap'}
+            {(result?.isGameComplete || currentGame?.status === 'COMPLETE') ? 'Match Complete' : 'Round Recap'}
           </p>
-          {result.isGameComplete ? (
+          {(result?.isGameComplete || currentGame?.status === 'COMPLETE') ? (
             <>
               <p className="text-4xl font-display text-aurora mt-2">
-                {result.winner === 'host' 
+                {(result?.winner || (currentGame?.hostPenniesScore >= 10 ? 'host' : currentGame?.guestPenniesScore >= 10 ? 'guest' : null)) === 'host' 
                   ? `${currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} Wins!` 
-                  : `${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} Wins!`}
+                  : (result?.winner || (currentGame?.hostPenniesScore >= 10 ? 'host' : currentGame?.guestPenniesScore >= 10 ? 'guest' : null)) === 'guest'
+                    ? `${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} Wins!`
+                    : 'Match Complete!'}
               </p>
               <p className="text-white/70 mt-2">
-                Final Score: {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} {result.hostScore} - {result.guestScore} {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
+                Final Score: {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} {result?.hostScore || currentGame?.hostPenniesScore || 0} - {result?.guestScore || currentGame?.guestPenniesScore || 0} {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
               </p>
               <div className="flex gap-4 mt-4 justify-center">
                 <button
@@ -487,10 +492,12 @@ const MatchingPennies = () => {
                     setLockedChoice('');
                     setOpponentLock('');
                     setRoundNumber(0);
+                    // Navigate to arena page (home)
+                    navigate('/arena', { replace: true });
                   }}
                   className="rounded-lg border border-white/20 bg-white/5 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10 transition"
                 >
-                  Go Back to Arena
+                  Exit to Arena
                 </button>
               </div>
             </>
@@ -517,6 +524,50 @@ const MatchingPennies = () => {
               </p>
             </>
           )}
+        </div>
+      )}
+
+      {/* Show buttons when game is complete, even if result is not set */}
+      {currentGame?.status === 'COMPLETE' && !result && (
+        <div className="rounded-3xl border border-aurora/60 bg-aurora/20 p-6 text-center">
+          <p className="text-xs uppercase tracking-[0.4em] text-white/60">Match Complete</p>
+          <p className="text-4xl font-display text-aurora mt-2">
+            {currentGame?.hostPenniesScore >= 10 
+              ? `${currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} Wins!` 
+              : currentGame?.guestPenniesScore >= 10
+                ? `${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} Wins!`
+                : 'Match Complete!'}
+          </p>
+          <p className="text-white/70 mt-2">
+            Final Score: {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} {currentGame?.hostPenniesScore || 0} - {currentGame?.guestPenniesScore || 0} {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
+          </p>
+          <div className="flex gap-4 mt-4 justify-center">
+            <button
+              onClick={() => {
+                if (socket && currentGame?.code) {
+                  socket.emit('rematch:request', { 
+                    code: currentGame.code,
+                    gameType: 'MATCHING_PENNIES',
+                    gameSettings: { timePerMove: 15 }
+                  });
+                  setStatusMessage('Rematch request sent. Waiting for opponent...');
+                }
+              }}
+              className="rounded-lg bg-gradient-to-r from-aurora/20 to-royal/20 border border-aurora/50 px-6 py-3 text-sm font-bold text-white hover:from-aurora/30 hover:to-royal/30 transition"
+            >
+              Rematch
+            </button>
+            <button
+              onClick={() => {
+                resetGame();
+                setSelectedGameType(null);
+                navigate('/arena', { replace: true });
+              }}
+              className="rounded-lg border border-white/20 bg-white/5 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10 transition"
+            >
+              Exit to Arena
+            </button>
+          </div>
         </div>
       )}
 

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import useGameStore from '../store/useGameStore';
 import useAuthStore from '../store/useAuthStore';
 import api from '../services/api';
@@ -6,8 +7,9 @@ import useSocket from '../hooks/useSocket';
 import RematchModal from './RematchModal';
 
 const GameOfGo = () => {
-  const { selectedGameType, setSelectedGameType, currentGame, statusMessage, setStatusMessage, setCurrentGame } = useGameStore();
+  const { selectedGameType, setSelectedGameType, currentGame, statusMessage, setStatusMessage, setCurrentGame, resetGame } = useGameStore();
   const user = useAuthStore((state) => state.user);
+  const navigate = useNavigate();
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   const [hoverIntersection, setHoverIntersection] = useState(null); // { row, col } or null
@@ -852,37 +854,58 @@ const GameOfGo = () => {
                   : `${currentGame?.guest?.studentName || currentGame?.guest?.username || 'White'} (White)`
                 }
               </p>
-              {finalScore.winner === null && (
-                <p className="text-xl font-semibold text-white mt-2">It's a Draw!</p>
-              )}
-              {/* Display clear win reason */}
-              {statusMessage && (
-                <p className="text-sm text-white/70 mt-3 italic">
-                  {statusMessage.includes('ran out of time') || statusMessage.includes('Time expired') 
-                    ? statusMessage.replace(/Black|White/g, (match) => {
-                        const isBlack = match === 'Black';
-                        const playerName = isBlack 
-                          ? (currentGame?.host?.studentName || currentGame?.host?.username || 'Black')
-                          : (currentGame?.guest?.studentName || currentGame?.guest?.username || 'White');
-                        return playerName;
-                      })
-                    : statusMessage
-                  }
-                </p>
-              )}
-              {/* Rematch Button */}
-              <button
-                onClick={() => {
-                  if (socket && currentGame?.code) {
-                    socket.emit('rematch:request', { code: currentGame.code });
-                    setStatusMessage('Rematch request sent. Waiting for opponent...');
-                  }
-                }}
-                className="mt-4 rounded-lg bg-gradient-to-r from-aurora/20 to-royal/20 border border-aurora/50 px-6 py-3 text-sm font-bold text-white hover:from-aurora/30 hover:to-royal/30 transition"
-              >
-                Rematch
-              </button>
             </div>
+          )}
+          {finalScore.winner === null && (
+            <div className="mt-4">
+              <p className="text-xl font-semibold text-white">It's a Draw!</p>
+            </div>
+          )}
+          <div className="flex gap-4 mt-6 justify-center">
+            <button
+              onClick={() => {
+                if (socket && currentGame?.code) {
+                  socket.emit('rematch:request', { 
+                    code: currentGame.code,
+                    gameType: 'GAME_OF_GO',
+                    gameSettings: {
+                      boardSize: currentGame.goBoardSize || 9,
+                      timeControl: currentGame.goTimeControl || null,
+                    }
+                  });
+                  setStatusMessage('Rematch request sent. Waiting for opponent...');
+                }
+              }}
+              className="rounded-lg bg-gradient-to-r from-aurora/20 to-royal/20 border border-aurora/50 px-6 py-3 text-sm font-bold text-white hover:from-aurora/30 hover:to-royal/30 transition"
+            >
+              Rematch
+            </button>
+            <button
+              onClick={() => {
+                resetGame();
+                setSelectedGameType(null);
+                // Navigate to arena page (home)
+                navigate('/arena', { replace: true });
+              }}
+              className="rounded-lg border border-white/20 bg-white/5 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10 transition"
+            >
+              Exit to Arena
+            </button>
+          </div>
+          {/* Display clear win reason */}
+          {statusMessage && (
+            <p className="text-sm text-white/70 mt-3 italic">
+              {statusMessage.includes('ran out of time') || statusMessage.includes('Time expired') 
+                ? statusMessage.replace(/Black|White/g, (match) => {
+                    const isBlack = match === 'Black';
+                    const playerName = isBlack 
+                      ? (currentGame?.host?.studentName || currentGame?.host?.username || 'Black')
+                      : (currentGame?.guest?.studentName || currentGame?.guest?.username || 'White');
+                    return playerName;
+                  })
+                : statusMessage
+              }
+            </p>
           )}
         </div>
       )}

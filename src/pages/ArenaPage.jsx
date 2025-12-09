@@ -33,6 +33,46 @@ const ArenaPage = () => {
   const [creatingGame, setCreatingGame] = useState(false);
   const [joinCode, setJoinCode] = useState('');
   
+  // Restore game state on page load/refresh
+  useEffect(() => {
+    const restoreGameState = async () => {
+      try {
+        // Get persisted game code from storage (Zustand persist format)
+        const persistedState = JSON.parse(localStorage.getItem('game-storage') || '{}');
+        // Zustand persist stores data in { state: { ... }, version: 0 } format
+        const gameCode = persistedState?.state?.gameCode;
+        
+        if (gameCode && !currentGame) {
+          // Restore game from server using persisted code
+          try {
+            const { data } = await api.get(`/games/code/${gameCode}`);
+            if (data.game) {
+              setCurrentGame(data.game);
+              // Restore selected game type if available
+              if (persistedState?.state?.selectedGameType) {
+                setSelectedGameType(persistedState.state.selectedGameType);
+              } else if (data.game.activeStage) {
+                setSelectedGameType(data.game.activeStage);
+              }
+              setStatusMessage('Game restored. Reconnecting...');
+            } else {
+              // Game not found, clear storage
+              localStorage.removeItem('game-storage');
+            }
+          } catch (err) {
+            console.error('Failed to restore game:', err);
+            // Clear invalid game code from storage
+            localStorage.removeItem('game-storage');
+          }
+        }
+      } catch (err) {
+        console.error('Error restoring game state:', err);
+      }
+    };
+    
+    restoreGameState();
+  }, []); // Only run on mount
+
   // Prevent browser back button from going to login page
   useEffect(() => {
     // Replace current history entry to prevent going back to login
