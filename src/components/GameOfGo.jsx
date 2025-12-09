@@ -473,11 +473,47 @@ const GameOfGo = () => {
         setCapturedBlack(0);
         setCapturedWhite(0);
         setCurrentTurn('black');
+        setLastMove(null);
+        // Reset time info - will be updated from server when game starts
+        setTimeInfo({ black: null, white: null });
         setStatusMessage('Rematch started! Both players connected.');
         // Join new game room
         if (socket && payload.newCode) {
           socket.emit('joinGame', { code: payload.newCode });
         }
+        // Refresh game details to get updated time state from server
+        setTimeout(async () => {
+          if (payload.game?.code) {
+            try {
+              const { data } = await api.get(`/games/code/${payload.game.code}`);
+              setCurrentGame(data.game);
+              // Update time info from server
+              if (data.game.goTimeState) {
+                const blackState = data.game.goTimeState.black;
+                const whiteState = data.game.goTimeState.white;
+                if (blackState && whiteState) {
+                  const blackTime = {
+                    mainTime: blackState.mainTime || 0,
+                    isByoYomi: blackState.isByoYomi || false,
+                    byoYomiTime: blackState.byoYomiTime || 0,
+                    byoYomiPeriods: blackState.byoYomiPeriods || 0,
+                    mode: data.game.goTimeControl?.mode || 'none',
+                  };
+                  const whiteTime = {
+                    mainTime: whiteState.mainTime || 0,
+                    isByoYomi: whiteState.isByoYomi || false,
+                    byoYomiTime: whiteState.byoYomiTime || 0,
+                    byoYomiPeriods: whiteState.byoYomiPeriods || 0,
+                    mode: data.game.goTimeControl?.mode || 'none',
+                  };
+                  setTimeInfo({ black: blackTime, white: whiteTime });
+                }
+              }
+            } catch (err) {
+              console.error('Failed to refresh game details after rematch:', err);
+            }
+          }
+        }, 500);
       }
     };
 
