@@ -418,7 +418,7 @@ const MatchingPennies = () => {
               {isHost ? (currentGame.guest?.studentName || currentGame.guest?.username || 'Challenger') : (currentGame.host?.studentName || currentGame.host?.username || 'Host')}
             </p>
             <p className={`text-7xl mt-2 ${opponentLock ? '' : 'animate-pulse'}`}>
-              {opponentLock === 'heads' ? '👑' : opponentLock === 'tails' ? '🦅' : '⏳'}
+              {opponentLock ? '🪙' : '⏳'}
             </p>
             <p className="text-base font-semibold text-white/80 mt-2">
               {opponentLock || (currentGame?.guest ? 'Waiting for lock' : 'Opponent pending')}
