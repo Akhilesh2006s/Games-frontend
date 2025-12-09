@@ -27,8 +27,6 @@ const GameOfGo = () => {
   const [finalScore, setFinalScore] = useState(null);
   const [timeInfo, setTimeInfo] = useState({ black: null, white: null });
   const [rematchModal, setRematchModal] = useState({ isOpen: false, opponentName: '', requesterId: null, gameType: null, gameSettings: null });
-  const [startConfirmModal, setStartConfirmModal] = useState({ isOpen: false, gameSettings: null });
-  const [rematchStartModal, setRematchStartModal] = useState({ isOpen: false, opponentName: '', gameSettings: null });
 
   const { socket, isConnected, isJoined } = useSocket({
     enabled: Boolean(currentGame),
@@ -122,44 +120,6 @@ const GameOfGo = () => {
       refreshGameDetails();
     }
   }, [currentGame?.activeStage, currentGame?.code, refreshGameDetails]);
-
-  // Auto-start game when both players are connected (but not during rematch)
-  useEffect(() => {
-    if (
-      isHost &&
-      currentGame?.status === 'READY' &&
-      currentGame?.activeStage === 'GAME_OF_GO' &&
-      currentGame?.guest &&
-      !rematchStartModal.isOpen && // Don't auto-start if rematch modal is open
-      gamePhase === 'PLAY' &&
-      !board.some(row => row && row.some(cell => cell !== null)) // No moves made yet
-    ) {
-      // Auto-start the game
-      const startGame = async () => {
-        if (!currentGame?.code) return;
-        try {
-          const requestBody = {
-            code: currentGame.code,
-            boardSize: currentGame.goBoardSize || 9,
-          };
-          
-          if (currentGame.goTimeControl && currentGame.goTimeControl.mode && currentGame.goTimeControl.mode !== 'none') {
-            requestBody.timeControl = currentGame.goTimeControl;
-          }
-          
-          await api.post('/games/start-go', requestBody);
-          setStatusMessage('Game started! Black plays first.');
-        } catch (err) {
-          console.error('Failed to auto-start game:', err);
-          setStatusMessage(err.response?.data?.message || 'Failed to start game');
-        }
-      };
-      
-      // Small delay to ensure everything is ready
-      const timer = setTimeout(startGame, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [isHost, currentGame?.status, currentGame?.activeStage, currentGame?.guest, currentGame?.code, currentGame?.goBoardSize, currentGame?.goTimeControl, rematchStartModal.isOpen, gamePhase, board]);
 
   // Update board when board size changes
   useEffect(() => {
@@ -495,7 +455,6 @@ const GameOfGo = () => {
 
     const handleRematchAccepted = async (payload) => {
       setRematchModal({ isOpen: false, opponentName: '', requesterId: null, gameType: null, gameSettings: null });
-      setRematchStartModal({ isOpen: false, opponentName: '', gameSettings: null });
       if (payload.game) {
         setCurrentGame(payload.game);
         // Set game type for auto-start
@@ -517,45 +476,44 @@ const GameOfGo = () => {
         setLastMove(null);
         // Reset time info - will be updated from server when game starts
         setTimeInfo({ black: null, white: null });
-        
-        // Get opponent name
-        const opponentName = isHost 
-          ? (payload.game?.guest?.studentName || payload.game?.guest?.username || 'Opponent')
-          : (payload.game?.host?.studentName || payload.game?.host?.username || 'Opponent');
-        
-        // Join new game room first
+        setStatusMessage('Rematch started! Both players connected.');
+        // Join new game room
         if (socket && payload.newCode) {
           socket.emit('joinGame', { code: payload.newCode });
         }
-        
-        // Auto-start the game immediately (host starts it)
-        if (isHost && payload.game?.code) {
-          try {
-            const requestBody = {
-              code: payload.game.code,
-              boardSize: payload.game?.goBoardSize || 9,
-            };
-            
-            if (payload.game?.goTimeControl && payload.game.goTimeControl.mode && payload.game.goTimeControl.mode !== 'none') {
-              requestBody.timeControl = payload.game.goTimeControl;
-            }
-            
-            // Wait a bit for room join to complete
-            setTimeout(async () => {
-              try {
-                await api.post('/games/start-go', requestBody);
-                setStatusMessage('Rematch started! Black plays first.');
-              } catch (err) {
-                console.error('Failed to start rematch:', err);
-                setStatusMessage(err.response?.data?.message || 'Failed to start rematch');
+        // Refresh game details to get updated time state from server
+        setTimeout(async () => {
+          if (payload.game?.code) {
+            try {
+              const { data } = await api.get(`/games/code/${payload.game.code}`);
+              setCurrentGame(data.game);
+              // Update time info from server
+              if (data.game.goTimeState) {
+                const blackState = data.game.goTimeState.black;
+                const whiteState = data.game.goTimeState.white;
+                if (blackState && whiteState) {
+                  const blackTime = {
+                    mainTime: blackState.mainTime || 0,
+                    isByoYomi: blackState.isByoYomi || false,
+                    byoYomiTime: blackState.byoYomiTime || 0,
+                    byoYomiPeriods: blackState.byoYomiPeriods || 0,
+                    mode: data.game.goTimeControl?.mode || 'none',
+                  };
+                  const whiteTime = {
+                    mainTime: whiteState.mainTime || 0,
+                    isByoYomi: whiteState.isByoYomi || false,
+                    byoYomiTime: whiteState.byoYomiTime || 0,
+                    byoYomiPeriods: whiteState.byoYomiPeriods || 0,
+                    mode: data.game.goTimeControl?.mode || 'none',
+                  };
+                  setTimeInfo({ black: blackTime, white: whiteTime });
+                }
               }
-            }, 500);
-          } catch (err) {
-            console.error('Failed to prepare rematch start:', err);
+            } catch (err) {
+              console.error('Failed to refresh game details after rematch:', err);
+            }
           }
-        } else {
-          setStatusMessage(`${opponentName} accepted the rematch. Game starting...`);
-        }
+        }, 500);
       }
     };
 
@@ -1067,8 +1025,6 @@ const GameOfGo = () => {
           setRematchModal({ isOpen: false, opponentName: '', requesterId: null, gameType: null, gameSettings: null });
         }}
       />
-
-
     </section>
   );
 };

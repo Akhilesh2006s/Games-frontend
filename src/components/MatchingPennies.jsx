@@ -142,10 +142,10 @@ const MatchingPennies = () => {
       
       // Update rounds played from payload
       if (payload.roundsPlayed !== undefined) {
-        setRoundsPlayed(Math.min(payload.roundsPlayed, 30)); // Cap at 30
+        setRoundsPlayed(payload.roundsPlayed);
       } else {
-        // Increment if not provided, but cap at 30
-        setRoundsPlayed(prev => Math.min(prev + 1, 30));
+        // Increment if not provided
+        setRoundsPlayed(prev => prev + 1);
       }
       
       if (payload.isGameComplete) {
@@ -407,7 +407,7 @@ const MatchingPennies = () => {
           <div className="text-center">
             <p className="text-xl font-bold text-white">Total 30 Rounds</p>
             <p className="text-lg font-semibold text-white/40">VS</p>
-            <p className="text-xl font-bold text-white mt-1">Round {Math.min(roundsPlayed, 30)}/30</p>
+            <p className="text-xl font-bold text-white mt-1">Round {roundsPlayed}/30</p>
           </div>
           <div className="text-center">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/70">
@@ -433,12 +433,10 @@ const MatchingPennies = () => {
       <div className="rounded-3xl border border-white/10 bg-white/5 p-6 text-white">
         <div className="flex flex-col gap-6 md:flex-row md:items-stretch md:justify-between">
           <div className="flex-1 rounded-2xl border border-white/5 bg-night/20 p-4 text-center">
-            <p className="text-xs uppercase tracking-[0.4em] text-white/50 mb-2">You</p>
-            <div className="flex items-center justify-center h-16 mb-2">
-              <p className={`text-6xl leading-none ${lockedChoice ? '' : 'animate-pulse'}`}>
-                {lockedChoice === 'heads' ? '👑' : lockedChoice === 'tails' ? '🦅' : '⏳'}
-              </p>
-            </div>
+            <p className="text-xs uppercase tracking-[0.4em] text-white/50">You</p>
+            <p className={`text-6xl ${lockedChoice ? '' : 'animate-pulse'}`}>
+              {lockedChoice === 'heads' ? '👑' : lockedChoice === 'tails' ? '🦅' : '⏳'}
+            </p>
             <p className="text-white/60">
               {lockedChoice ? `Locked ${lockedChoice.toUpperCase()}` : 'Choose heads or tails'}
             </p>
@@ -455,16 +453,14 @@ const MatchingPennies = () => {
               </div>
             )}
           </div>
-          <div className="flex-1 rounded-2xl border border-white/5 bg-night/20 p-4 text-center">
-            <p className="text-xs uppercase tracking-[0.4em] text-white/50 mb-2">
+          <div className="flex-1 rounded-2xl border border-white/5 bg-night/20 p-6 text-center">
+            <p className="text-base font-semibold uppercase tracking-[0.2em] text-white/70">
               {isHost ? (currentGame.guest?.studentName || currentGame.guest?.username || 'Challenger') : (currentGame.host?.studentName || currentGame.host?.username || 'Host')}
             </p>
-            <div className="flex items-center justify-center h-16 mb-2">
-              <p className={`text-6xl leading-none ${opponentLock ? '' : 'animate-pulse'}`}>
-                {opponentLock ? '⏳' : '⏳'}
-              </p>
-            </div>
-            <p className="text-white/60">
+            <p className={`text-6xl mt-2 ${opponentLock ? '' : 'animate-pulse'}`}>
+              {opponentLock ? '⏳' : '⏳'}
+            </p>
+            <p className="text-base font-semibold text-white/80 mt-2">
               {opponentLock || (currentGame?.guest ? 'Waiting for lock' : 'Opponent pending')}
             </p>
             {/* Timer Display for Opponent - Game of Go Style */}
@@ -492,21 +488,17 @@ const MatchingPennies = () => {
               key={choice.value}
               onClick={() => submitChoice(choice.value)}
               disabled={isDisabled}
-              className={`rounded-3xl border border-white/10 bg-white/5 px-6 py-8 text-center transition hover:-translate-y-1 w-full flex flex-col items-center justify-between min-h-[200px] ${
+              className={`rounded-3xl border border-white/10 bg-white/5 px-6 py-8 text-center transition hover:-translate-y-1 w-full flex flex-col items-center justify-center ${
                 lockedChoice === choice.value ? 'ring-2 ring-aurora' : ''
               } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              <div className="flex-1 flex items-center justify-center min-h-[80px]">
-                <span className="text-6xl leading-none">{choice.icon}</span>
-              </div>
-              <div className="flex flex-col items-center gap-2 w-full">
-                <p className="text-lg font-semibold uppercase tracking-[0.4em] text-white/50">
-                  {choice.label}
-                </p>
-                <p className="text-white/70 text-sm">
-                  Choose this side
-                </p>
-              </div>
+              <p className="text-6xl">{choice.icon}</p>
+              <p className="mt-4 text-lg font-semibold uppercase tracking-[0.4em] text-white/50">
+                {choice.label}
+              </p>
+              <p className="text-white/70 mt-2">
+                Choose this side
+              </p>
             </button>
           );
         })}
