@@ -480,7 +480,7 @@ const MatchingPennies = () => {
         <p className="mt-4 text-center text-sm text-white/50">{opponentStatus}</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 md:items-stretch">
         {choices.map((choice) => {
           const isDisabled = !isJoined || lockedChoice !== '' || roundsPlayed >= 30;
           return (
@@ -488,7 +488,7 @@ const MatchingPennies = () => {
               key={choice.value}
               onClick={() => submitChoice(choice.value)}
               disabled={isDisabled}
-              className={`rounded-3xl border border-white/10 bg-white/5 px-6 py-8 text-center transition hover:-translate-y-1 w-full flex flex-col items-center justify-center ${
+              className={`rounded-3xl border border-white/10 bg-white/5 px-6 py-8 text-center transition hover:-translate-y-1 w-full flex flex-col items-center justify-center h-full ${
                 lockedChoice === choice.value ? 'ring-2 ring-aurora' : ''
               } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
