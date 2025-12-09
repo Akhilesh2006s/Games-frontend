@@ -595,11 +595,6 @@ const RockPaperScissors = () => {
         </div>
       )}
 
-      <div className="rounded-3xl border border-white/5 bg-white/5 p-4 text-sm text-white/60">
-        Game of Go and Matching Pennies unlock sequentially for every completed Rock Paper Scissors duel. They are
-        showcased here with cinematic placeholders until your code completes Stage 01.
-      </div>
-
       <RematchModal
         isOpen={rematchModal.isOpen}
         opponentName={rematchModal.opponentName}

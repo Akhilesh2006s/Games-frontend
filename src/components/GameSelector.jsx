@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import api from '../services/api';
 import useGameStore from '../store/useGameStore';
+import useAuthStore from '../store/useAuthStore';
 
 const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameStarted }) => {
   const { setCurrentGame, setStatusMessage } = useGameStore();
+  const user = useAuthStore((state) => state.user);
   const [loading, setLoading] = useState({ rps: false, go: false, pennies: false });
   const [goBoardSize, setGoBoardSize] = useState(9);
   const goBoardSizeRef = useRef(9);
@@ -81,7 +83,13 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
       const { data } = await api.post(endpoint, requestBody);
       console.log('Game started with boardSize:', data.game.goBoardSize, 'Requested:', requestBody.boardSize);
       setCurrentGame(data.game);
-      setStatusMessage(message);
+      
+      if (data.pending) {
+        setStatusMessage('Game settings saved! Waiting for opponent to join. Game will start automatically when they join.');
+      } else {
+        setStatusMessage(message);
+      }
+      
       if (onGameSelected) onGameSelected();
     } catch (err) {
       console.error(err);
@@ -151,7 +159,9 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
             ? `Game in progress: ${currentGame.activeStage === 'ROCK_PAPER_SCISSORS' ? 'Rock Paper Scissors' : currentGame.activeStage === 'GAME_OF_GO' ? 'Game of Go' : 'Matching Pennies'}. End the current game to switch.`
             : hasActiveGame
             ? `Currently playing: ${currentGame.activeStage === 'ROCK_PAPER_SCISSORS' ? 'Rock Paper Scissors' : currentGame.activeStage === 'GAME_OF_GO' ? 'Game of Go' : 'Matching Pennies'}. Select a different game below.`
-            : 'Both players are connected! Choose your battle arena below.'}
+            : currentGame?.guest
+            ? 'Both players are connected! Choose your battle arena below.'
+            : 'Select game settings and start. Game will begin automatically when opponent joins.'}
         </p>
       </div>
 

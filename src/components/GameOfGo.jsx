@@ -920,15 +920,22 @@ const GameOfGo = () => {
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
         <p className="text-xs uppercase tracking-[0.4em] text-white/50 mb-2">Game Rules</p>
-        <ul className="text-sm text-white/70 space-y-1">
+        <ul className="text-sm text-white/70 space-y-1 mb-4">
           <li>• Black plays first, then players alternate turns</li>
           <li>• Place stones on intersections to surround territory</li>
           <li>• Stones with no liberties (adjacent empty spaces) are captured</li>
           <li>• Cannot place stone that captures your own group (Suicide Rule)</li>
           <li>• Cannot recreate previous board position (Ko Rule)</li>
-          <li>• Pass when no beneficial moves available</li>
+          <li>• One may pass their turn without losing points</li>
           <li>• Game ends when both players pass consecutively</li>
-          <li>• The player with more captured stones wins</li>
+        </ul>
+        <p className="text-xs uppercase tracking-[0.4em] text-white/50 mb-2 mt-4">Scoring System (Chinese)</p>
+        <ul className="text-sm text-white/70 space-y-1">
+          <li>• Controlled Territory: Empty intersections you enclose (+1)</li>
+          <li>• Stones on board: Intersections your stones occupy (+1)</li>
+          <li>• Komi: White's bonus for going second (+7.5)</li>
+          <li>• White Scoring: Stones on Board + Controlled Territory + Komi</li>
+          <li>• Black Scoring: Stones on Board + Controlled Territory</li>
         </ul>
       </div>
 

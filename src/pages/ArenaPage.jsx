@@ -13,7 +13,7 @@ import useGameStore from '../store/useGameStore';
 const ArenaPage = () => {
   const logout = useAuthStore((state) => state.logout);
   const user = useAuthStore((state) => state.user);
-  const { currentGame, selectedGameType, setSelectedGameType } = useGameStore();
+  const { currentGame, selectedGameType, setSelectedGameType, resetGame } = useGameStore();
   const navigate = useNavigate();
   const [showStats, setShowStats] = useState(false);
   const [activeTab, setActiveTab] = useState('arena'); // 'arena' or 'online'
@@ -213,6 +213,42 @@ const ArenaPage = () => {
                 </div>
               )}
 
+              {/* Show Selected Game and Current Lobby Info */}
+              {selectedGameType && !currentGame?.activeStage && (
+                <div className="mb-6 glass-panel p-4 border border-aurora/30">
+                  <div className="flex items-center justify-between flex-wrap gap-4">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.4em] text-white/50 mb-1">
+                        {currentGame?.code ? 'Current Lobby' : 'Selected Game'}
+                      </p>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <p className="text-lg font-semibold text-white">
+                          {selectedGameType === 'ROCK_PAPER_SCISSORS' ? 'Rock Paper Scissors' :
+                           selectedGameType === 'GAME_OF_GO' ? 'Game of Go' :
+                           selectedGameType === 'MATCHING_PENNIES' ? 'Matching Pennies' : 'Game'}
+                        </p>
+                        {currentGame?.code && (
+                          <>
+                            <span className="text-white/40">•</span>
+                            <p className="text-lg font-mono tracking-wider text-aurora">{currentGame.code}</p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    {currentGame?.code && (
+                      <div className="text-sm text-white/70">
+                        {currentGame.guest ? 'Both players connected' : 'Waiting for opponent...'}
+                      </div>
+                    )}
+                    {!currentGame?.code && (
+                      <div className="text-sm text-white/60">
+                        Create or join a code to start
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Step 2: Game Lobby - Create Code (after game selection) */}
               {(selectedGameType || currentGame?.code) && !currentGame?.activeStage && (
                 <div className="mb-6">
@@ -224,8 +260,8 @@ const ArenaPage = () => {
                 </div>
               )}
 
-              {/* Step 3: Game Selector (when both players connected) - Auto-start selected game */}
-              {currentGame?.guest && !currentGame?.activeStage && selectedGameType && (
+              {/* Step 3: Game Selector - Host can start before guest joins */}
+              {!currentGame?.activeStage && selectedGameType && (
                 <div className="mb-6">
                   <GameSelector 
                     currentGame={currentGame} 
@@ -244,16 +280,33 @@ const ArenaPage = () => {
                 </div>
               )}
 
-              {/* Row 3: Active Game Display - Below Game Options */}
+              {/* Row 3: Active Game Display - Full Screen */}
               {currentGame?.activeStage && (
-                <div className="mb-6">
-                  {currentGame.activeStage === 'ROCK_PAPER_SCISSORS' ? (
-                    <RockPaperScissors />
-                  ) : currentGame.activeStage === 'GAME_OF_GO' ? (
-                    <GameOfGo />
-                  ) : currentGame.activeStage === 'MATCHING_PENNIES' ? (
-                    <MatchingPennies />
-                  ) : null}
+                <div className="fixed inset-0 z-50 bg-night overflow-auto">
+                  <div className="min-h-screen p-4 md:p-6">
+                    {/* Full Screen Game Header */}
+                    <div className="mb-4 flex items-center justify-between">
+                      <button
+                        onClick={() => {
+                          resetGame();
+                          setSelectedGameType(null);
+                        }}
+                        className="rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition"
+                      >
+                        ← Back to Arena
+                      </button>
+                      <div className="text-sm text-white/60">
+                        Lobby: <span className="font-mono text-aurora">{currentGame.code}</span>
+                      </div>
+                    </div>
+                    {currentGame.activeStage === 'ROCK_PAPER_SCISSORS' ? (
+                      <RockPaperScissors />
+                    ) : currentGame.activeStage === 'GAME_OF_GO' ? (
+                      <GameOfGo />
+                    ) : currentGame.activeStage === 'MATCHING_PENNIES' ? (
+                      <MatchingPennies />
+                    ) : null}
+                  </div>
                 </div>
               )}
 

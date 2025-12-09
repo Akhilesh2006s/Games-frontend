@@ -43,3 +43,4 @@ const RematchModal = ({ isOpen, opponentName, onAccept, onReject, onClose }) => 
 
 export default RematchModal;
 
+
