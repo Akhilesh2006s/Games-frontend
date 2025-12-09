@@ -315,6 +315,12 @@ const MatchingPennies = () => {
         // Join new game room
         if (socket && payload.newCode) {
           socket.emit('joinGame', { code: payload.newCode });
+          // Auto-start timer after joining the room (wait a bit for room join to complete)
+          setTimeout(() => {
+            if (payload.game?.penniesTimePerMove && payload.game.penniesTimePerMove > 0 && socket && payload.newCode) {
+              socket.emit('startRound', { code: payload.newCode, gameType: 'MATCHING_PENNIES' });
+            }
+          }, 500);
         }
       }
     };
