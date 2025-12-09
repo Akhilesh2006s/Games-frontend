@@ -398,7 +398,7 @@ const MatchingPennies = () => {
             </p>
           </div>
           <div className="text-center">
-            <p className="text-xl font-bold text-white">Total 30 rounds</p>
+            <p className="text-xl font-bold text-white">Total 30 Rounds</p>
             <p className="text-lg font-semibold text-white/40">VS</p>
             <p className="text-xl font-bold text-white mt-1">Round {roundsPlayed}/30</p>
           </div>
