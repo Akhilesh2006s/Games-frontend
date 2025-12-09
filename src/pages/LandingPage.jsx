@@ -22,7 +22,10 @@ const timeline = [
 
 const LandingPage = () => {
   const navigate = useNavigate();
-  const handleSuccess = () => navigate('/arena');
+  const handleSuccess = () => {
+    // Replace history entry so user can't go back to login page
+    navigate('/arena', { replace: true });
+  };
 
   return (
     <main className="min-h-screen bg-night px-4 py-10 text-white md:px-12">

@@ -9,14 +9,52 @@ import UserStats from '../components/UserStats';
 import OnlinePlayers from '../components/OnlinePlayers';
 import useAuthStore from '../store/useAuthStore';
 import useGameStore from '../store/useGameStore';
+import api from '../services/api';
 
 const ArenaPage = () => {
   const logout = useAuthStore((state) => state.logout);
   const user = useAuthStore((state) => state.user);
-  const { currentGame, selectedGameType, setSelectedGameType, resetGame } = useGameStore();
+  const { currentGame, selectedGameType, setSelectedGameType, resetGame, setCurrentGame, setStatusMessage } = useGameStore();
   const navigate = useNavigate();
   const [showStats, setShowStats] = useState(false);
   const [activeTab, setActiveTab] = useState('arena'); // 'arena' or 'online'
+  const [goConfig, setGoConfig] = useState({
+    boardSize: 9,
+    timeControl: {
+      enabled: false,
+      mode: 'fischer',
+      mainTime: 30,
+      increment: 5,
+      byoYomiTime: 10,
+      byoYomiPeriods: 5,
+      preset: null,
+    },
+  });
+  const [creatingGame, setCreatingGame] = useState(false);
+  const [joinCode, setJoinCode] = useState('');
+  
+  // Prevent browser back button from going to login page
+  useEffect(() => {
+    // Replace current history entry to prevent going back to login
+    window.history.replaceState(null, '', window.location.href);
+    
+    const handlePopState = (event) => {
+      const token = useAuthStore.getState().token;
+      // If user is still logged in, prevent going back to login page
+      if (token) {
+        // Push current state back to prevent navigation
+        window.history.pushState(null, '', window.location.href);
+        // Stay on current page
+        return;
+      }
+    };
+    
+    window.addEventListener('popstate', handlePopState);
+    
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
   
   // Set selected game type when game starts
   useEffect(() => {
@@ -36,6 +74,130 @@ const ArenaPage = () => {
     logout();
     navigate('/');
   };
+
+  const handleEnterLobby = async () => {
+    if (creatingGame) return;
+    setCreatingGame(true);
+    try {
+      // Create game code immediately when entering lobby
+      const { data: gameData } = await api.post('/games/create');
+      setCurrentGame(gameData.game);
+      setSelectedGameType('GAME_OF_GO');
+      setStatusMessage('Game code created! Share the code with your opponent. Game will start automatically when they join.');
+    } catch (err) {
+      console.error('Failed to create game:', err);
+      setStatusMessage(err.response?.data?.message || 'Failed to create game');
+    } finally {
+      setCreatingGame(false);
+    }
+  };
+
+  const handleQuickJoin = async () => {
+    if (!joinCode || creatingGame) return;
+    setCreatingGame(true);
+    try {
+      const { data } = await api.post('/games/join', { code: joinCode.trim().toUpperCase() });
+      if (data.game && (!data.game.host || !data.game.guest)) {
+        const { data: gameData } = await api.get(`/games/code/${data.game.code}`);
+        setCurrentGame(gameData.game);
+      } else {
+        setCurrentGame(data.game);
+      }
+      // Set selected game type based on active stage if exists
+      if (data.game?.activeStage) {
+        setSelectedGameType(data.game.activeStage);
+      }
+      setStatusMessage('Joined game successfully!');
+      setJoinCode('');
+    } catch (err) {
+      console.error('Failed to join game:', err);
+      setStatusMessage(err.response?.data?.message || 'Failed to join game');
+    } finally {
+      setCreatingGame(false);
+    }
+  };
+
+  const handleSelectGame = async (gameType) => {
+    if (creatingGame) return;
+    
+    // For RPS and Matching Pennies, automatically create code and enter lobby
+    if (gameType === 'ROCK_PAPER_SCISSORS' || gameType === 'MATCHING_PENNIES') {
+      setCreatingGame(true);
+      try {
+        const { data: gameData } = await api.post('/games/create');
+        setCurrentGame(gameData.game);
+        setSelectedGameType(gameType);
+        setStatusMessage('Game code created! Share the code with your opponent. Game will start automatically when they join.');
+      } catch (err) {
+        console.error('Failed to create game:', err);
+        setStatusMessage(err.response?.data?.message || 'Failed to create game');
+      } finally {
+        setCreatingGame(false);
+      }
+    } else {
+      // For Game of Go, just set selected type (user needs to configure first)
+      setSelectedGameType(gameType);
+    }
+  };
+
+  // Auto-start game when both players connect
+  useEffect(() => {
+    const autoStartGame = async () => {
+      if (
+        currentGame?.code &&
+        currentGame?.guest &&
+        !currentGame?.activeStage &&
+        !creatingGame &&
+        selectedGameType
+      ) {
+        setCreatingGame(true);
+        try {
+          if (selectedGameType === 'GAME_OF_GO') {
+            const requestBody = {
+              code: currentGame.code,
+              boardSize: goConfig.boardSize,
+            };
+            
+            if (goConfig.timeControl.enabled) {
+              requestBody.timeControl = {
+                mode: goConfig.timeControl.mode,
+                mainTime: goConfig.timeControl.mainTime,
+                increment: goConfig.timeControl.increment,
+                byoYomiTime: goConfig.timeControl.byoYomiTime,
+                byoYomiPeriods: goConfig.timeControl.byoYomiPeriods,
+              };
+            }
+            
+            await api.post('/games/start-go', requestBody);
+            setStatusMessage('Game of Go started automatically! Both players connected.');
+          } else if (selectedGameType === 'ROCK_PAPER_SCISSORS') {
+            await api.post('/games/start-rps', {
+              code: currentGame.code,
+              timePerMove: 15, // Fixed 15 seconds
+            });
+            setStatusMessage('Rock Paper Scissors started automatically! Both players connected.');
+          } else if (selectedGameType === 'MATCHING_PENNIES') {
+            await api.post('/games/start-pennies', {
+              code: currentGame.code,
+              timePerMove: 15, // Fixed 15 seconds
+            });
+            setStatusMessage('Matching Pennies started automatically! Both players connected.');
+          }
+          
+          // Refresh game to get updated state
+          const { data: updatedGame } = await api.get(`/games/code/${currentGame.code}`);
+          setCurrentGame(updatedGame.game);
+        } catch (err) {
+          console.error('Failed to auto-start game:', err);
+          setStatusMessage(err.response?.data?.message || 'Failed to start game');
+        } finally {
+          setCreatingGame(false);
+        }
+      }
+    };
+
+    autoStartGame();
+  }, [currentGame?.guest, currentGame?.code, currentGame?.activeStage, selectedGameType, goConfig, creatingGame, setCurrentGame, setStatusMessage]);
 
   return (
     <main className="min-h-screen bg-night px-4 py-8 md:px-10">
@@ -131,18 +293,51 @@ const ArenaPage = () => {
             <OnlinePlayers />
           ) : (
             <>
-              {/* Step 1: Select Game (if no game selected and no active game) */}
-              {!selectedGameType && !currentGame?.activeStage && !currentGame?.guest && (
+              {/* Quick Join Option - Above game selection */}
+              {!currentGame?.code && !currentGame?.activeStage && (
+                <div className="mb-6 glass-panel p-4 border border-aurora/30">
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <div className="flex-1 min-w-[200px]">
+                      <label className="block text-xs uppercase tracking-[0.4em] text-white/50 mb-2">
+                        Quick Join
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Enter game code"
+                        value={joinCode}
+                        onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && joinCode) {
+                            handleQuickJoin();
+                          }
+                        }}
+                        className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-white placeholder-white/40 outline-none focus:border-aurora transition uppercase tracking-wider"
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <button
+                        onClick={handleQuickJoin}
+                        disabled={!joinCode || creatingGame}
+                        className="rounded-lg bg-gradient-to-r from-aurora/20 to-royal/20 border border-aurora/50 px-6 py-2 text-sm font-bold text-white transition-all hover:from-aurora/30 hover:to-royal/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {creatingGame ? 'Joining...' : 'Join Game'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 1: Select Game - Show when no game code created yet (allow configuration) */}
+              {!currentGame?.code && !currentGame?.activeStage && (
                 <div className="mb-6">
                   <div className="glass-panel p-6 text-white">
                     <h2 className="text-2xl font-semibold mb-4">Select a Game</h2>
                     <p className="text-white/60 mb-6">Choose a game to play, then create a code to invite your opponent.</p>
                     <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
                       <button
-                        onClick={() => {
-                          setSelectedGameType('ROCK_PAPER_SCISSORS');
-                        }}
+                        onClick={() => handleSelectGame('ROCK_PAPER_SCISSORS')}
                         className="glass-panel p-6 text-white border-2 border-white/10 hover:border-aurora/50 transition text-left"
+                        disabled={creatingGame}
                       >
                         <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-pulse/30 to-royal/30 text-3xl">
                           ✊
@@ -162,12 +357,11 @@ const ArenaPage = () => {
                           <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">✌️ Scissors</span>
                         </div>
                       </button>
-                      <button
-                        onClick={() => {
-                          setSelectedGameType('GAME_OF_GO');
-                        }}
-                        className="glass-panel p-6 text-white border-2 border-white/10 hover:border-aurora/50 transition text-left"
-                      >
+                      <div className={`glass-panel p-6 text-white border-2 transition text-left ${
+                        selectedGameType === 'GAME_OF_GO' 
+                          ? 'border-aurora/50 bg-aurora/10' 
+                          : 'border-white/10 hover:border-aurora/50'
+                      }`}>
                         <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-royal/30 to-aurora/30 text-3xl">
                           ⚫
                         </div>
@@ -180,16 +374,262 @@ const ArenaPage = () => {
                         <p className="mb-4 text-sm leading-relaxed text-white/70">
                           Strategic board game. Place stones to surround territory and capture opponent stones.
                         </p>
-                        <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-3 mb-4">
                           <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">⚫ Black</span>
                           <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">⚪ White</span>
                         </div>
-                      </button>
+
+                        {selectedGameType === 'GAME_OF_GO' && (
+                          <div className="mt-6 pt-6 border-t border-white/10 space-y-4">
+                            {/* Board Size Selection */}
+                            <div>
+                              <label className="block text-xs font-semibold uppercase tracking-wider text-white/50 mb-2">
+                                Board Size
+                              </label>
+                              <div className="flex gap-2">
+                                {[9, 13, 19].map((size) => (
+                                  <button
+                                    key={size}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setGoConfig({ ...goConfig, boardSize: size });
+                                    }}
+                                    className={`flex-1 rounded-lg border-2 px-3 py-2 text-sm font-bold transition-all ${
+                                      goConfig.boardSize === size
+                                        ? 'border-aurora bg-aurora/30 text-white'
+                                        : 'border-white/20 bg-white/5 text-white/70 hover:border-aurora/50'
+                                    }`}
+                                  >
+                                    {size}×{size}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Time Control */}
+                            <div>
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={goConfig.timeControl.enabled}
+                                  onChange={(e) => {
+                                    setGoConfig({
+                                      ...goConfig,
+                                      timeControl: { ...goConfig.timeControl, enabled: e.target.checked },
+                                    });
+                                  }}
+                                  className="rounded border-white/20"
+                                />
+                                <span className="text-xs font-semibold uppercase tracking-wider text-white/50">
+                                  Enable Time Control
+                                </span>
+                              </label>
+
+                              {goConfig.timeControl.enabled && (
+                                <div className="mt-3 pl-6 space-y-3 border-l-2 border-white/10">
+                                  {/* Time System */}
+                                  <div>
+                                    <label className="text-xs font-semibold uppercase tracking-wider text-white/50 block mb-2">
+                                      Time System
+                                    </label>
+                                    <div className="flex gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setGoConfig({
+                                            ...goConfig,
+                                            timeControl: { ...goConfig.timeControl, mode: 'fischer', preset: null },
+                                          });
+                                        }}
+                                        className={`flex-1 rounded-lg border-2 px-3 py-2 text-xs font-bold transition-all ${
+                                          goConfig.timeControl.mode === 'fischer'
+                                            ? 'border-aurora bg-aurora/30 text-white'
+                                            : 'border-white/20 bg-white/5 text-white/70'
+                                        }`}
+                                      >
+                                        Fischer
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setGoConfig({
+                                            ...goConfig,
+                                            timeControl: { ...goConfig.timeControl, mode: 'japanese', preset: null },
+                                          });
+                                        }}
+                                        className={`flex-1 rounded-lg border-2 px-3 py-2 text-xs font-bold transition-all ${
+                                          goConfig.timeControl.mode === 'japanese'
+                                            ? 'border-aurora bg-aurora/30 text-white'
+                                            : 'border-white/20 bg-white/5 text-white/70'
+                                        }`}
+                                      >
+                                        Byo-Yomi
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Fischer Presets */}
+                                  {goConfig.timeControl.mode === 'fischer' && (
+                                    <div>
+                                      <label className="text-xs font-semibold uppercase tracking-wider text-white/50 block mb-2">
+                                        Quick Presets
+                                      </label>
+                                      <div className="grid grid-cols-3 gap-2">
+                                        {[
+                                          { name: 'Blitz A', mainTime: 30, increment: 5, preset: 'BLITZ_A' },
+                                          { name: 'Blitz B', mainTime: 120, increment: 7, preset: 'BLITZ_B' },
+                                          { name: 'Rapid', mainTime: 180, increment: 10, preset: 'RAPID' },
+                                        ].map((preset) => (
+                                          <button
+                                            key={preset.preset}
+                                            type="button"
+                                            onClick={() => {
+                                              setGoConfig({
+                                                ...goConfig,
+                                                timeControl: {
+                                                  ...goConfig.timeControl,
+                                                  ...preset,
+                                                },
+                                              });
+                                            }}
+                                            className={`rounded-lg border-2 px-2 py-2 text-xs font-bold transition-all ${
+                                              goConfig.timeControl.preset === preset.preset
+                                                ? 'border-aurora bg-aurora/30 text-white'
+                                                : 'border-white/20 bg-white/5 text-white/70'
+                                            }`}
+                                          >
+                                            {preset.name}
+                                            <br />
+                                            <span className="text-[10px]">
+                                              {preset.mainTime}s + {preset.increment}s
+                                            </span>
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Main Time */}
+                                  <div>
+                                    <label className="text-xs text-white/60 block mb-1">Main Time (seconds)</label>
+                                    <input
+                                      type="number"
+                                      min="1"
+                                      max="3600"
+                                      value={goConfig.timeControl.mainTime}
+                                      onChange={(e) => {
+                                        setGoConfig({
+                                          ...goConfig,
+                                          timeControl: {
+                                            ...goConfig.timeControl,
+                                            mainTime: parseInt(e.target.value) || 0,
+                                            preset: null,
+                                          },
+                                        });
+                                      }}
+                                      className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white"
+                                    />
+                                  </div>
+
+                                  {/* Fischer Increment */}
+                                  {goConfig.timeControl.mode === 'fischer' && (
+                                    <div>
+                                      <label className="text-xs text-white/60 block mb-1">Increment (seconds)</label>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        max="60"
+                                        value={goConfig.timeControl.increment}
+                                        onChange={(e) => {
+                                          setGoConfig({
+                                            ...goConfig,
+                                            timeControl: {
+                                              ...goConfig.timeControl,
+                                              increment: parseInt(e.target.value) || 0,
+                                              preset: null,
+                                            },
+                                          });
+                                        }}
+                                        className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white"
+                                      />
+                                    </div>
+                                  )}
+
+                                  {/* Japanese Byo-Yomi */}
+                                  {goConfig.timeControl.mode === 'japanese' && (
+                                    <>
+                                      <div>
+                                        <label className="text-xs text-white/60 block mb-1">Period Time (seconds)</label>
+                                        <input
+                                          type="number"
+                                          min="1"
+                                          max="300"
+                                          value={goConfig.timeControl.byoYomiTime}
+                                          onChange={(e) => {
+                                            setGoConfig({
+                                              ...goConfig,
+                                              timeControl: {
+                                                ...goConfig.timeControl,
+                                                byoYomiTime: parseInt(e.target.value) || 1,
+                                              },
+                                            });
+                                          }}
+                                          className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white"
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="text-xs text-white/60 block mb-1">Number of Periods</label>
+                                        <input
+                                          type="number"
+                                          min="1"
+                                          max="10"
+                                          value={goConfig.timeControl.byoYomiPeriods}
+                                          onChange={(e) => {
+                                            setGoConfig({
+                                              ...goConfig,
+                                              timeControl: {
+                                                ...goConfig.timeControl,
+                                                byoYomiPeriods: parseInt(e.target.value) || 1,
+                                              },
+                                            });
+                                          }}
+                                          className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white"
+                                        />
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Enter Lobby Button */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEnterLobby();
+                              }}
+                              disabled={creatingGame}
+                              className="w-full mt-4 rounded-lg bg-gradient-to-r from-aurora/20 to-royal/20 border border-aurora/50 px-4 py-3 text-sm font-bold text-white transition-all hover:from-aurora/30 hover:to-royal/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              Enter Lobby
+                            </button>
+                          </div>
+                        )}
+
+                        {selectedGameType !== 'GAME_OF_GO' && (
+                          <button
+                            onClick={() => setSelectedGameType('GAME_OF_GO')}
+                            className="w-full mt-4 rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition"
+                          >
+                            Configure & Create
+                          </button>
+                        )}
+                      </div>
                       <button
-                        onClick={() => {
-                          setSelectedGameType('MATCHING_PENNIES');
-                        }}
+                        onClick={() => handleSelectGame('MATCHING_PENNIES')}
                         className="glass-panel p-6 text-white border-2 border-white/10 hover:border-aurora/50 transition text-left"
+                        disabled={creatingGame}
                       >
                         <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-aurora/30 to-pulse/30 text-3xl">
                           🪙
@@ -213,15 +653,15 @@ const ArenaPage = () => {
                 </div>
               )}
 
-              {/* Show Selected Game and Current Lobby Info */}
+              {/* Show Selected Game and Current Lobby Info - AFTER game selection */}
               {selectedGameType && !currentGame?.activeStage && (
-                <div className="mb-6 glass-panel p-4 border border-aurora/30">
+                <div className="mb-6 glass-panel p-4 border border-aurora/30 relative">
                   <div className="flex items-center justify-between flex-wrap gap-4">
-                    <div>
+                    <div className="flex-1">
                       <p className="text-xs uppercase tracking-[0.4em] text-white/50 mb-1">
                         {currentGame?.code ? 'Current Lobby' : 'Selected Game'}
                       </p>
-                      <div className="flex items-center gap-3 flex-wrap">
+                      <div className="flex items-center gap-3 flex-wrap mb-2">
                         <p className="text-lg font-semibold text-white">
                           {selectedGameType === 'ROCK_PAPER_SCISSORS' ? 'Rock Paper Scissors' :
                            selectedGameType === 'GAME_OF_GO' ? 'Game of Go' :
@@ -234,17 +674,73 @@ const ArenaPage = () => {
                           </>
                         )}
                       </div>
+                      {/* Show Go Configuration Details */}
+                      {selectedGameType === 'GAME_OF_GO' && (
+                        <div className="mt-3 pt-3 border-t border-white/10">
+                          <div className="flex flex-wrap items-center gap-3 text-sm">
+                            <span className="text-white/70">
+                              Board: <span className="text-aurora font-semibold">{goConfig.boardSize}×{goConfig.boardSize}</span>
+                            </span>
+                            {goConfig.timeControl.enabled && (
+                              <>
+                                <span className="text-white/40">•</span>
+                                <span className="text-white/70">
+                                  Time: <span className="text-aurora font-semibold">
+                                    {goConfig.timeControl.mode === 'fischer' 
+                                      ? `${goConfig.timeControl.mainTime}s + ${goConfig.timeControl.increment}s`
+                                      : `${goConfig.timeControl.mainTime}s + ${goConfig.timeControl.byoYomiPeriods}×${goConfig.timeControl.byoYomiTime}s`
+                                    }
+                                  </span>
+                                </span>
+                                {goConfig.timeControl.preset && (
+                                  <>
+                                    <span className="text-white/40">•</span>
+                                    <span className="text-white/70">
+                                      Preset: <span className="text-aurora font-semibold">
+                                        {goConfig.timeControl.preset === 'BLITZ_A' ? 'Blitz A' :
+                                         goConfig.timeControl.preset === 'BLITZ_B' ? 'Blitz B' :
+                                         goConfig.timeControl.preset === 'RAPID' ? 'Rapid' : ''}
+                                      </span>
+                                    </span>
+                                  </>
+                                )}
+                              </>
+                            )}
+                            {!goConfig.timeControl.enabled && (
+                              <>
+                                <span className="text-white/40">•</span>
+                                <span className="text-white/70">No time control</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    {currentGame?.code && (
-                      <div className="text-sm text-white/70">
-                        {currentGame.guest ? 'Both players connected' : 'Waiting for opponent...'}
-                      </div>
-                    )}
-                    {!currentGame?.code && (
-                      <div className="text-sm text-white/60">
-                        Create or join a code to start
-                      </div>
-                    )}
+                    <div className="flex flex-col items-end gap-2">
+                      {currentGame?.code && (
+                        <button
+                          onClick={() => {
+                            // Clear game code and selected type to go back to selection
+                            setCurrentGame(null);
+                            setSelectedGameType(null);
+                            setStatusMessage('');
+                          }}
+                          className="rounded-lg border border-aurora/50 bg-aurora/20 px-3 py-1.5 text-xs font-semibold text-aurora hover:bg-aurora/30 hover:border-aurora transition shadow-[0_0_10px_rgba(83,255,227,0.3)]"
+                        >
+                          ← Back to Selection
+                        </button>
+                      )}
+                      {currentGame?.code && (
+                        <div className="text-sm text-white/70">
+                          {currentGame.guest ? 'Both players connected' : 'Waiting for opponent...'}
+                        </div>
+                      )}
+                      {!currentGame?.code && (
+                        <div className="text-sm text-white/60">
+                          Create or join a code to start
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -260,18 +756,6 @@ const ArenaPage = () => {
                 </div>
               )}
 
-              {/* Step 3: Game Selector - Host can start before guest joins */}
-              {!currentGame?.activeStage && selectedGameType && (
-                <div className="mb-6">
-                  <GameSelector 
-                    currentGame={currentGame} 
-                    selectedGameType={selectedGameType}
-                    onGameStarted={() => {
-                      // Game started - keep selectedGameType locked
-                    }}
-                  />
-                </div>
-              )}
               
               {/* Show message if game is in progress and trying to create new game */}
               {currentGame?.activeStage && (
@@ -288,8 +772,10 @@ const ArenaPage = () => {
                     <div className="mb-4 flex items-center justify-between">
                       <button
                         onClick={() => {
-                          resetGame();
-                          setSelectedGameType(null);
+                          // Just clear activeStage to go back to lobby, don't reset entire game
+                          if (currentGame) {
+                            setCurrentGame({ ...currentGame, activeStage: null });
+                          }
                         }}
                         className="rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition"
                       >

@@ -10,6 +10,14 @@ const choices = [
   { label: 'Tails', value: 'tails', emoji: '🪙', icon: '🦅' },
 ];
 
+const formatDuration = (seconds) => {
+  const mins = Math.floor(seconds / 60)
+    .toString()
+    .padStart(2, '0');
+  const secs = (seconds % 60).toString().padStart(2, '0');
+  return `${mins}:${secs}`;
+};
+
 const MatchingPennies = () => {
   const { selectedGameType, setSelectedGameType, currentGame, statusMessage, setStatusMessage, setCurrentGame, resetGame } = useGameStore();
   const user = useAuthStore((state) => state.user);
@@ -376,18 +384,18 @@ const MatchingPennies = () => {
             <p className="text-white/60">
               {lockedChoice ? `Locked ${lockedChoice.toUpperCase()}` : 'Choose heads or tails'}
             </p>
-            {/* Timer Display for You */}
-            {timeRemaining !== null && timeRemaining > 0 && !lockedChoice && currentGame?.status === 'IN_PROGRESS' && (
-              <div className="mt-3">
-                <p className={`text-2xl font-bold font-mono ${
+            {/* Timer Display for You - Game of Go Style */}
+            {timeRemaining !== null && timeRemaining > 0 && !lockedChoice && (currentGame?.status === 'IN_PROGRESS' || currentGame?.status === 'READY') && (
+              <div className="mt-3 text-center">
+                <div className={`text-3xl font-bold font-mono transition-colors ${
                   timeRemaining <= 5 
                     ? 'text-red-400 animate-pulse' 
                     : timeRemaining <= 10 
                       ? 'text-yellow-400' 
                       : 'text-aurora'
                 }`}>
-                  {timeRemaining}s
-                </p>
+                  {formatDuration(timeRemaining)}
+                </div>
                 <p className="text-xs text-white/50 mt-1">Time remaining</p>
               </div>
             )}

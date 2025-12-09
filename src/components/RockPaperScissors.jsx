@@ -387,17 +387,7 @@ const RockPaperScissors = () => {
           </div>
         </div>
         <p className="mt-4 text-white/60">{statusMessage || opponentStatus}</p>
-        {/* Timer Display */}
-        {timeRemaining !== null && timeRemaining > 0 && !lockedMove && currentGame?.status === 'IN_PROGRESS' && (
-          <div className="mt-4 text-center">
-            <div className="inline-block rounded-lg border-2 border-aurora/50 bg-aurora/10 px-6 py-3">
-              <p className={`text-lg font-bold ${timeRemaining <= 5 ? 'text-red-400 animate-pulse' : timeRemaining <= 10 ? 'text-yellow-400' : 'text-aurora'}`}>
-                ⏱️ {timeRemaining}s
-              </p>
-              <p className="text-xs text-white/60 mt-1">Time remaining to choose</p>
-            </div>
-          </div>
-        )}
+        {/* Timer Display - Game of Go Style (removed duplicate, timer is in player card) */}
       </header>
 
       <div className="rounded-3xl border border-white/10 bg-white/5 p-6 text-white">
@@ -408,18 +398,18 @@ const RockPaperScissors = () => {
             <p className="text-white/60">
               {lockedMove ? `Locked ${lockedMove.toUpperCase()}` : 'Pick a hand to lock in'}
             </p>
-            {/* Timer Display for You */}
-            {timeRemaining !== null && timeRemaining > 0 && !lockedMove && currentGame?.status === 'IN_PROGRESS' && (
-              <div className="mt-3">
-                <p className={`text-2xl font-bold font-mono ${
+            {/* Timer Display for You - Game of Go Style */}
+            {timeRemaining !== null && timeRemaining > 0 && !lockedMove && (currentGame?.status === 'IN_PROGRESS' || currentGame?.status === 'READY') && (
+              <div className="mt-3 text-center">
+                <div className={`text-3xl font-bold font-mono transition-colors ${
                   timeRemaining <= 5 
                     ? 'text-red-400 animate-pulse' 
                     : timeRemaining <= 10 
                       ? 'text-yellow-400' 
                       : 'text-aurora'
                 }`}>
-                  {timeRemaining}s
-                </p>
+                  {formatDuration(timeRemaining)}
+                </div>
                 <p className="text-xs text-white/50 mt-1">Time remaining</p>
               </div>
             )}
