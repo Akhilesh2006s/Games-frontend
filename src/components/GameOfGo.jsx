@@ -947,20 +947,6 @@ const GameOfGo = () => {
           const hasAnyMoves = capturedBlack > 0 || capturedWhite > 0 || 
             (board && board.some(row => row && row.some(cell => cell !== null)));
           
-          // Only show Resign button if at least one move has been made
-          if (!hasAnyMoves) {
-            return null;
-          }
-          
-          return (
-            <button
-              onClick={handleEndGame}
-              disabled={!isJoined || gamePhase === 'COMPLETE'}
-              className="flex-1 rounded-lg border border-red-500/50 bg-red-500/10 px-6 py-3 text-sm font-semibold text-red-400 hover:bg-red-500/20 transition disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Resign
-            </button>
-          );
         })()}
       </div>
 

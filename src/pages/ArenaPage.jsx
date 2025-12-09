@@ -440,7 +440,7 @@ const ArenaPage = () => {
                         </div>
                         <h3 className="mb-2 text-xl font-bold text-white">Rock • Paper • Scissors</h3>
                         <p className="mb-4 text-sm leading-relaxed text-white/70">
-                          Classic hand game. Choose rock, paper, or scissors. The first to reach 10 points wins.
+                          Classic hand game. Choose rock, paper, or scissors. Both players play the match for a total of 30 rounds.
                         </p>
                         <div className="flex flex-wrap items-center gap-3">
                           <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">✊ Rock</span>
@@ -732,7 +732,7 @@ const ArenaPage = () => {
                         </div>
                         <h3 className="mb-2 text-xl font-bold text-white">Matching Pennies</h3>
                         <p className="mb-4 text-sm leading-relaxed text-white/70">
-                          A psychology game where both players choose either Heads or Tails. The first to reach 10 points wins.
+                          A psychology game where both players choose either Heads or Tails. Both players play the match for a total of 30 rounds.
                         </p>
                         <div className="flex flex-wrap items-center gap-3">
                           <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">👑 Heads</span>
