@@ -84,7 +84,7 @@ const MatchingPennies = () => {
     setOpponentStatus('Waiting for a challenger to enter your code.');
   }, [currentGame, isHost]);
 
-  // Timer for per-move time control
+  // Timer for per-move time control - request timer from server
   useEffect(() => {
     if (!currentGame?.penniesTimePerMove || currentGame.penniesTimePerMove === 0) {
       setTimeRemaining(null);
@@ -92,26 +92,10 @@ const MatchingPennies = () => {
     }
 
     if (!lockedChoice && !result && isJoined && (currentGame.status === 'IN_PROGRESS' || currentGame.status === 'READY')) {
-      // Start timer when it's player's turn and no choice is locked
-      const timePerMove = currentGame.penniesTimePerMove || 15;
-      setTimeRemaining(timePerMove);
-      
-      // Notify server that round has started (for timeout tracking)
+      // Notify server that round has started (server will send timer updates)
       if (socket && currentGame?.code && !lockedChoice && currentGame.status === 'IN_PROGRESS') {
         socket.emit('startRound', { code: currentGame.code, gameType: 'MATCHING_PENNIES' });
       }
-      
-      const timer = setInterval(() => {
-        setTimeRemaining((prev) => {
-          if (prev === null || prev <= 1) {
-            // Time expired - server will handle timeout and player loses
-            return null;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-
-      return () => clearInterval(timer);
     } else {
       setTimeRemaining(null);
     }
@@ -207,7 +191,21 @@ const MatchingPennies = () => {
       }
     });
     socket.on('game:error', handleError);
-
+    
+    // Listen for server timer updates (like Game of Go)
+    const handleTimerUpdate = (payload) => {
+      if (payload.timeRemaining !== undefined) {
+        // Only update if player hasn't locked their choice
+        if (!lockedChoice) {
+          setTimeRemaining(payload.timeRemaining);
+        } else {
+          // Clear timer when choice is locked
+          setTimeRemaining(null);
+        }
+      }
+    };
+    socket.on('penniesTimerUpdate', handleTimerUpdate);
+    
     // Handle game ended (from resign)
     const handleGameEnded = (payload) => {
       if (payload.game) {
@@ -295,8 +293,9 @@ const MatchingPennies = () => {
       socket.off('rematch:requested', handleRematchRequest);
       socket.off('rematch:accepted', handleRematchAccepted);
       socket.off('rematch:rejected', handleRematchRejected);
+      socket.off('penniesTimerUpdate', handleTimerUpdate);
     };
-  }, [currentGame?.guest, refreshGameDetails, setStatusMessage, setCurrentGame, socket, isHost, currentGame, selectedGameType, setSelectedGameType]);
+  }, [currentGame?.guest, refreshGameDetails, setStatusMessage, setCurrentGame, socket, isHost, currentGame, selectedGameType, setSelectedGameType, lockedChoice]);
 
   const submitChoice = (choice) => {
     if (!socket || !currentGame || !isJoined) {
@@ -389,14 +388,11 @@ const MatchingPennies = () => {
               <div className="mt-3 text-center">
                 <div className={`text-3xl font-bold font-mono transition-colors ${
                   timeRemaining <= 5 
-                    ? 'text-red-400 animate-pulse' 
-                    : timeRemaining <= 10 
-                      ? 'text-yellow-400' 
-                      : 'text-aurora'
+                    ? 'text-pulse animate-pulse' 
+                    : 'text-aurora'
                 }`}>
                   {formatDuration(timeRemaining)}
                 </div>
-                <p className="text-xs text-white/50 mt-1">Time remaining</p>
               </div>
             )}
           </div>
@@ -410,6 +406,18 @@ const MatchingPennies = () => {
             <p className="text-base font-semibold text-white/80 mt-2">
               {opponentLock || (currentGame?.guest ? 'Waiting for lock' : 'Opponent pending')}
             </p>
+            {/* Timer Display for Opponent - Game of Go Style */}
+            {timeRemaining !== null && timeRemaining > 0 && opponentLock === '' && (currentGame?.status === 'IN_PROGRESS' || currentGame?.status === 'READY') && currentGame?.guest && (
+              <div className="mt-3 text-center">
+                <div className={`text-3xl font-bold font-mono transition-colors ${
+                  timeRemaining <= 5 
+                    ? 'text-pulse animate-pulse' 
+                    : 'text-aurora'
+                }`}>
+                  {formatDuration(timeRemaining)}
+                </div>
+              </div>
+            )}
           </div>
         </div>
         <p className="mt-4 text-center text-sm text-white/50">{opponentStatus}</p>

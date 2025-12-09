@@ -1,8 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import api from '../services/api';
 import useGameStore from '../store/useGameStore';
 import useAuthStore from '../store/useAuthStore';
-import GameSelector from './GameSelector';
 
 const OnlinePlayers = () => {
   const { currentGame, setCurrentGame, setStatusMessage } = useGameStore();
@@ -12,6 +11,67 @@ const OnlinePlayers = () => {
   const [searchResults, setSearchResults] = useState({ players: [], games: [] });
   const [loading, setLoading] = useState(false);
   const [creatingGame, setCreatingGame] = useState(false);
+  
+  // Filter to only show players who created game codes (hosts of games waiting for opponents)
+  const playersWithCodes = useMemo(() => {
+    if (!searchResults.games || searchResults.games.length === 0) return [];
+    
+    // Get games waiting for opponents (no guest)
+    const waitingGames = searchResults.games.filter(game => !game.guest && game.host?._id !== user?._id);
+    
+    // Map to player objects with their game code and game details
+    return waitingGames.map(game => {
+      // Determine game type from pendingGameSettings or activeStage
+      let gameType = 'Not Selected';
+      let gameDetails = '';
+      
+      if (game.pendingGameSettings) {
+        gameType = game.pendingGameSettings.gameType || 'Not Selected';
+        if (gameType === 'GAME_OF_GO') {
+          const settings = game.pendingGameSettings;
+          const boardSize = settings.boardSize || game.goBoardSize || '9';
+          const timeControl = settings.timeControl;
+          if (timeControl && timeControl.enabled) {
+            if (timeControl.mode === 'fischer') {
+              gameDetails = `${boardSize}x${boardSize} • Fischer (${timeControl.mainTime}s + ${timeControl.increment}s)`;
+            } else if (timeControl.mode === 'japanese') {
+              gameDetails = `${boardSize}x${boardSize} • Japanese Byo-Yomi (${timeControl.mainTime}s main, ${timeControl.byoYomiTime}s periods)`;
+            } else {
+              gameDetails = `${boardSize}x${boardSize} • ${timeControl.mode}`;
+            }
+          } else {
+            gameDetails = `${boardSize}x${boardSize} • No time control`;
+          }
+        } else if (gameType === 'ROCK_PAPER_SCISSORS') {
+          gameDetails = '15 seconds per move';
+        } else if (gameType === 'MATCHING_PENNIES') {
+          gameDetails = '15 seconds per move';
+        }
+      } else if (game.activeStage) {
+        gameType = game.activeStage;
+        if (gameType === 'GAME_OF_GO') {
+          const boardSize = game.goBoardSize || '9';
+          gameDetails = `${boardSize}x${boardSize} board`;
+        } else if (gameType === 'ROCK_PAPER_SCISSORS') {
+          gameDetails = '15 seconds per move';
+        } else if (gameType === 'MATCHING_PENNIES') {
+          gameDetails = '15 seconds per move';
+        }
+      }
+      
+      return {
+        _id: game.host?._id,
+        username: game.host?.username,
+        studentName: game.host?.studentName,
+        email: game.host?.email,
+        enrollmentNo: game.host?.enrollmentNo,
+        gameCode: game.code,
+        gameId: game._id,
+        gameType,
+        gameDetails,
+      };
+    });
+  }, [searchResults.games, user?._id]);
 
   const loadPlayersAndGames = useCallback(async () => {
     setLoading(true);
@@ -129,52 +189,16 @@ const OnlinePlayers = () => {
 
       {!loading && (
         <div className="space-y-6">
-          {/* Available Games */}
-          {searchResults.games && searchResults.games.length > 0 && (
+          {/* Online Players with Game Codes */}
+          {playersWithCodes.length > 0 && (
             <div>
               <h3 className="text-lg font-semibold mb-3">
-                {searchQuery.trim() ? 'Available Games' : 'All Available Games'}
+                Online Players ({playersWithCodes.length})
               </h3>
               <div className="space-y-3">
-                {searchResults.games.map((game) => (
+                {playersWithCodes.map((player) => (
                   <div
-                    key={game._id}
-                    className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
-                  >
-                    <div className="flex-1">
-                      <p className="text-sm text-white/50 mb-1">Game Code: {game.code}</p>
-                      <p className="font-semibold">
-                        {game.host?.studentName || game.host?.username || 'Host'}
-                        {game.guest ? ` vs ${game.guest?.studentName || game.guest?.username || 'Guest'}` : ' (Waiting for opponent)'}
-                      </p>
-                      {game.host?.enrollmentNo && (
-                        <p className="text-xs text-white/40 mt-1">Host Enrollment: {game.host.enrollmentNo}</p>
-                      )}
-                    </div>
-                    {!game.guest && game.host?._id !== user?._id && (
-                      <button
-                        onClick={() => handleJoinGame(game.code)}
-                        className="ml-4 rounded-lg border border-aurora/50 bg-aurora/10 px-4 py-2 text-sm text-aurora hover:bg-aurora/20 transition"
-                      >
-                        Join
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Players */}
-          {searchResults.players && searchResults.players.length > 0 && (
-            <div>
-              <h3 className="text-lg font-semibold mb-3">
-                {searchQuery.trim() ? 'Players' : 'All Online Players'}
-              </h3>
-              <div className="space-y-3">
-                {searchResults.players.map((player) => (
-                  <div
-                    key={player._id}
+                    key={player._id || player.gameId}
                     className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
                   >
                     <div className="flex-1">
@@ -184,15 +208,25 @@ const OnlinePlayers = () => {
                       {player.enrollmentNo && (
                         <p className="text-sm text-white/60">Enrollment: {player.enrollmentNo}</p>
                       )}
-                      {player.fullName && (
-                        <p className="text-xs text-white/40 mt-1">{player.fullName}</p>
+                      <p className="text-xs text-white/40 mt-1">Game Code: {player.gameCode}</p>
+                      {player.gameType && player.gameType !== 'Not Selected' && (
+                        <>
+                          <p className="text-sm text-aurora mt-2 font-semibold">
+                            {player.gameType === 'GAME_OF_GO' ? 'Game of Go' : 
+                             player.gameType === 'ROCK_PAPER_SCISSORS' ? 'Rock Paper Scissors' :
+                             player.gameType === 'MATCHING_PENNIES' ? 'Matching Pennies' : player.gameType}
+                          </p>
+                          {player.gameDetails && (
+                            <p className="text-xs text-white/50 mt-1">{player.gameDetails}</p>
+                          )}
+                        </>
                       )}
                     </div>
                     <button
-                      onClick={handleCreateGame}
+                      onClick={() => handleJoinGame(player.gameCode)}
                       className="ml-4 rounded-lg border border-aurora/50 bg-aurora/10 px-4 py-2 text-sm text-aurora hover:bg-aurora/20 transition"
                     >
-                      Challenge
+                      Join Game
                     </button>
                   </div>
                 ))}
@@ -200,9 +234,9 @@ const OnlinePlayers = () => {
             </div>
           )}
 
-          {!loading && searchResults.games?.length === 0 && searchResults.players?.length === 0 && (
+          {!loading && playersWithCodes.length === 0 && (
             <div className="text-center py-8 text-white/50">
-              {searchQuery.trim() ? 'No results found' : 'No players or games available'}
+              {searchQuery.trim() ? 'No players found' : 'No online players with available games'}
             </div>
           )}
         </div>
@@ -237,12 +271,6 @@ const OnlinePlayers = () => {
         </div>
       )}
 
-      {/* Show game selector when both players connected */}
-      {currentGame?.guest && (
-        <div className="mt-6">
-          <GameSelector currentGame={currentGame} />
-        </div>
-      )}
     </div>
   );
 };

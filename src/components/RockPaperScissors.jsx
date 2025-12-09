@@ -113,7 +113,24 @@ const RockPaperScissors = () => {
     return () => clearInterval(timer);
   }, [currentGame]);
 
-  // Timer for per-move time control
+  // Listen for server timer updates (like Game of Go)
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleTimerUpdate = (payload) => {
+      if (payload.timeRemaining !== undefined) {
+        setTimeRemaining(payload.timeRemaining);
+      }
+    };
+
+    socket.on('rpsTimerUpdate', handleTimerUpdate);
+
+    return () => {
+      socket.off('rpsTimerUpdate', handleTimerUpdate);
+    };
+  }, [socket]);
+
+  // Timer for per-move time control - request timer from server
   useEffect(() => {
     if (!currentGame?.rpsTimePerMove || currentGame.rpsTimePerMove === 0) {
       setTimeRemaining(null);
@@ -121,26 +138,10 @@ const RockPaperScissors = () => {
     }
 
     if (!lockedMove && !result && isJoined && (currentGame.status === 'IN_PROGRESS' || currentGame.status === 'READY')) {
-      // Start timer when it's player's turn and no move is locked
-      const timePerMove = currentGame.rpsTimePerMove || 15;
-      setTimeRemaining(timePerMove);
-      
-      // Notify server that round has started (for timeout tracking)
+      // Notify server that round has started (server will send timer updates)
       if (socket && currentGame?.code && !lockedMove && currentGame.status === 'IN_PROGRESS') {
         socket.emit('startRound', { code: currentGame.code, gameType: 'ROCK_PAPER_SCISSORS' });
       }
-      
-      const timer = setInterval(() => {
-        setTimeRemaining((prev) => {
-          if (prev === null || prev <= 1) {
-            // Time expired - server will handle timeout and player loses
-            return null;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-
-      return () => clearInterval(timer);
     } else {
       setTimeRemaining(null);
     }
@@ -234,6 +235,20 @@ const RockPaperScissors = () => {
       }
     });
     socket.on('game:error', handleError);
+    
+    // Listen for server timer updates (like Game of Go)
+    const handleTimerUpdate = (payload) => {
+      if (payload.timeRemaining !== undefined) {
+        // Only update if player hasn't locked their move
+        if (!lockedMove) {
+          setTimeRemaining(payload.timeRemaining);
+        } else {
+          // Clear timer when move is locked
+          setTimeRemaining(null);
+        }
+      }
+    };
+    socket.on('rpsTimerUpdate', handleTimerUpdate);
 
     // Handle game ended (from resign)
     const handleGameEnded = (payload) => {
@@ -321,8 +336,9 @@ const RockPaperScissors = () => {
       socket.off('rematch:requested', handleRematchRequest);
       socket.off('rematch:accepted', handleRematchAccepted);
       socket.off('rematch:rejected', handleRematchRejected);
+      socket.off('rpsTimerUpdate', handleTimerUpdate);
     };
-  }, [currentGame?.guest, refreshGameDetails, setStatusMessage, setCurrentGame, socket]);
+  }, [currentGame?.guest, refreshGameDetails, setStatusMessage, setCurrentGame, socket, lockedMove]);
 
   const playMove = (choice) => {
     if (!socket || !currentGame || !isJoined) {
@@ -403,14 +419,11 @@ const RockPaperScissors = () => {
               <div className="mt-3 text-center">
                 <div className={`text-3xl font-bold font-mono transition-colors ${
                   timeRemaining <= 5 
-                    ? 'text-red-400 animate-pulse' 
-                    : timeRemaining <= 10 
-                      ? 'text-yellow-400' 
-                      : 'text-aurora'
+                    ? 'text-pulse animate-pulse' 
+                    : 'text-aurora'
                 }`}>
                   {formatDuration(timeRemaining)}
                 </div>
-                <p className="text-xs text-white/50 mt-1">Time remaining</p>
               </div>
             )}
           </div>
@@ -422,6 +435,18 @@ const RockPaperScissors = () => {
             <p className="text-white/60">
               {opponentLock || (currentGame?.guest ? 'Waiting for lock' : 'Opponent pending')}
             </p>
+            {/* Timer Display for Opponent - Game of Go Style */}
+            {timeRemaining !== null && timeRemaining > 0 && opponentLock === '' && (currentGame?.status === 'IN_PROGRESS' || currentGame?.status === 'READY') && currentGame?.guest && (
+              <div className="mt-3 text-center">
+                <div className={`text-3xl font-bold font-mono transition-colors ${
+                  timeRemaining <= 5 
+                    ? 'text-pulse animate-pulse' 
+                    : 'text-aurora'
+                }`}>
+                  {formatDuration(timeRemaining)}
+                </div>
+              </div>
+            )}
           </div>
         </div>
         {!currentGame.guest && (
@@ -520,7 +545,11 @@ const RockPaperScissors = () => {
           ) : (
             <>
               <p className="text-3xl font-display">
-                {result.result === 'draw' ? 'Draw' : `${result.result.toUpperCase()} wins this round`}
+                {result.result === 'draw' 
+                  ? 'Draw' 
+                  : result.result === 'host'
+                    ? `${currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} wins this round`
+                    : `${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} wins this round`}
               </p>
               <p className="text-white/70">
                 {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} played <span className="font-semibold">{result.hostMove}</span> • {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} played{' '}
