@@ -453,7 +453,9 @@ const RockPaperScissors = () => {
             </p>
           </div>
         </div>
-        <p className="mt-4 text-white/60">{statusMessage || opponentStatus}</p>
+        <p className={`mt-4 ${statusMessage?.includes('Round complete') ? 'text-lg font-bold text-white' : 'text-white/60'}`}>
+          {statusMessage || opponentStatus}
+        </p>
         {/* Timer Display - Game of Go Style (removed duplicate, timer is in player card) */}
       </header>
 
@@ -541,7 +543,7 @@ const RockPaperScissors = () => {
             ? 'border-aurora/60 bg-aurora/20' 
             : 'border-aurora/40 bg-aurora/10'
         }`}>
-          <p className="text-xs uppercase tracking-[0.4em] text-white/60">
+          <p className={`uppercase tracking-[0.4em] ${(result?.isGameComplete || currentGame?.status === 'COMPLETE') ? 'text-lg font-bold text-white' : 'text-xs text-white/60'}`}>
             {(result?.isGameComplete || currentGame?.status === 'COMPLETE') ? 'Match Complete' : 'Round Recap'}
           </p>
           {(result?.isGameComplete || currentGame?.status === 'COMPLETE') ? (
@@ -575,12 +577,12 @@ const RockPaperScissors = () => {
                         if (!selectedGameType) {
                           setSelectedGameType('ROCK_PAPER_SCISSORS');
                         }
-                    setStatusMessage('Rematch game created! Share the code with your opponent.');
-                    setResult(null);
-                    setScores({ host: 0, guest: 0 });
+                        setStatusMessage('Rematch game created! Share the code with your opponent.');
+                        setResult(null);
+                        setScores({ host: 0, guest: 0 });
                     setRoundsPlayed(0);
-                    setLockedMove('');
-                    setOpponentLock('');
+                        setLockedMove('');
+                        setOpponentLock('');
                       }
                     } catch (err) {
                       setStatusMessage(err.response?.data?.message || 'Failed to create rematch');
@@ -629,60 +631,6 @@ const RockPaperScissors = () => {
         </div>
       )}
 
-      {/* Show buttons when game is complete - ALWAYS show if status is COMPLETE or 30 rounds played */}
-      {((currentGame?.status === 'COMPLETE') || (roundsPlayed >= 30)) && (
-        <div className="rounded-3xl border border-aurora/60 bg-aurora/20 p-6 text-center">
-          <p className="text-xs uppercase tracking-[0.4em] text-white/60">Match Complete</p>
-          <p className="text-4xl font-display text-aurora mt-2">
-            {scores.host > scores.guest
-              ? `${currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} Wins!` 
-              : scores.guest > scores.host
-                ? `${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} Wins!`
-                : 'Match Complete - Draw!'}
-          </p>
-          <p className="text-white/70 mt-2">
-            Final Score: {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} {currentGame?.hostScore || scores.host || 0} - {currentGame?.guestScore || scores.guest || 0} {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
-          </p>
-          <div className="flex gap-4 mt-4 justify-center">
-            <button
-              onClick={async () => {
-                try {
-                  if (socket && currentGame?.code) {
-                    socket.emit('rematch:request', { 
-                      code: currentGame.code,
-                      gameType: 'ROCK_PAPER_SCISSORS',
-                      gameSettings: { timePerMove: 15 }
-                    });
-                    setStatusMessage('Rematch request sent. Waiting for opponent...');
-                  } else {
-                    const { data } = await api.post('/games/create');
-                    setCurrentGame(data.game);
-                    if (!selectedGameType) {
-                      setSelectedGameType('ROCK_PAPER_SCISSORS');
-                    }
-                    setStatusMessage('Rematch game created! Share the code with your opponent.');
-                  }
-                } catch (err) {
-                  setStatusMessage(err.response?.data?.message || 'Failed to create rematch');
-                }
-              }}
-              className="rounded-lg bg-gradient-to-r from-aurora/20 to-royal/20 border border-aurora/50 px-6 py-3 text-sm font-bold text-white hover:from-aurora/30 hover:to-royal/30 transition"
-            >
-              Rematch
-            </button>
-            <button
-              onClick={() => {
-                resetGame();
-                setSelectedGameType(null);
-                navigate('/arena', { replace: true });
-              }}
-              className="rounded-lg border border-white/20 bg-white/5 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10 transition"
-            >
-              Exit to Arena
-            </button>
-          </div>
-        </div>
-      )}
 
 
       <RematchModal

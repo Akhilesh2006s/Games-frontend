@@ -381,7 +381,7 @@ const ArenaPage = () => {
           </div>
 
           {activeTab === 'online' ? (
-            <OnlinePlayers />
+            <OnlinePlayers onJoinGame={() => setActiveTab('arena')} />
           ) : (
             <>
               {/* Quick Join Option - Above game selection */}
@@ -860,17 +860,7 @@ const ArenaPage = () => {
                 <div className="fixed inset-0 z-50 bg-night overflow-auto">
                   <div className="min-h-screen p-4 md:p-6">
                     {/* Full Screen Game Header */}
-                    <div className="mb-4 flex items-center justify-between">
-                      <button
-                        onClick={() => {
-                          // Reset game and go back to arena selection
-                          resetGame();
-                          setSelectedGameType(null);
-                        }}
-                        className="rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition"
-                      >
-                        ← Back to Arena
-                      </button>
+                    <div className="mb-4 flex items-center justify-end">
                       <div className="text-sm text-white/60">
                         Lobby: <span className="font-mono text-aurora">{currentGame.code}</span>
                       </div>

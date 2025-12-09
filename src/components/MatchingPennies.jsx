@@ -29,6 +29,7 @@ const MatchingPennies = () => {
   const [opponentStatus, setOpponentStatus] = useState('Create or join a code to begin.');
   const [scores, setScores] = useState({ host: 0, guest: 0 });
   const [roundNumber, setRoundNumber] = useState(0);
+  const [roundsPlayed, setRoundsPlayed] = useState(0);
   const [timeRemaining, setTimeRemaining] = useState(null);
   const timeRemainingRef = useRef(null);
   const [rematchModal, setRematchModal] = useState({ isOpen: false, opponentName: '', requesterId: null, gameType: null, gameSettings: null });
@@ -46,14 +47,22 @@ const MatchingPennies = () => {
     try {
       const { data } = await api.get(`/games/code/${currentGame.code}`);
       setCurrentGame(data.game);
-      // If game is complete, ensure result persists
+      // If game is complete, ensure result persists and set rounds to 30
       if (data.game.status === 'COMPLETE' && !result) {
+        // Determine winner based on scores after 30 rounds
+        let winner = null;
+        if (data.game.hostPenniesScore > data.game.guestPenniesScore) {
+          winner = 'host';
+        } else if (data.game.guestPenniesScore > data.game.hostPenniesScore) {
+          winner = 'guest';
+        }
         setResult({
           isGameComplete: true,
-          winner: data.game.hostPenniesScore >= 10 ? 'host' : data.game.guestPenniesScore >= 10 ? 'guest' : null,
+          winner,
           hostScore: data.game.hostPenniesScore || 0,
           guestScore: data.game.guestPenniesScore || 0,
         });
+        setRoundsPlayed(30); // Game complete means 30 rounds played
       }
     } catch (err) {
       console.error('Failed to refresh arena state', err);
@@ -84,7 +93,9 @@ const MatchingPennies = () => {
     }
     setLockedChoice('');
     setOpponentLock('');
+    // Reset rounds played when game changes
     if (!currentGame) {
+      setRoundsPlayed(0);
       setOpponentStatus('Create or join a code to begin.');
       return;
     }
@@ -105,9 +116,10 @@ const MatchingPennies = () => {
       return;
     }
 
+    // Start timer from first round (READY status) or when game is in progress
     if (!lockedChoice && !result && isJoined && (currentGame.status === 'IN_PROGRESS' || currentGame.status === 'READY')) {
       // Notify server that round has started (server will send timer updates)
-      if (socket && currentGame?.code && !lockedChoice && currentGame.status === 'IN_PROGRESS') {
+      if (socket && currentGame?.code && !lockedChoice) {
         socket.emit('startRound', { code: currentGame.code, gameType: 'MATCHING_PENNIES' });
       }
     } else {
@@ -128,11 +140,23 @@ const MatchingPennies = () => {
       });
       setRoundNumber(payload.roundNumber || 0);
       
+      // Update rounds played from payload
+      if (payload.roundsPlayed !== undefined) {
+        setRoundsPlayed(payload.roundsPlayed);
+      } else {
+        // Increment if not provided
+        setRoundsPlayed(prev => prev + 1);
+      }
+      
       if (payload.isGameComplete) {
         const winnerName = payload.winner === 'host' 
           ? (currentGame?.host?.studentName || currentGame?.host?.username)
           : (currentGame?.guest?.studentName || currentGame?.guest?.username);
-        setStatusMessage(`${winnerName} wins the Matching Pennies match! First to 10 points.`);
+        if (payload.winner) {
+          setStatusMessage(`${winnerName} wins the Matching Pennies match! Final score after 30 rounds.`);
+        } else {
+          setStatusMessage('Match complete! It\'s a draw after 30 rounds.');
+        }
         // Don't clear result when game is complete - keep it visible for both players
         // Don't refresh game details immediately to prevent clearing the result
         return; // Exit early to prevent refreshGameDetails() call
@@ -141,7 +165,7 @@ const MatchingPennies = () => {
           ? `Both chose the same. ${currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} wins!`
           : `Different choices. ${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} wins!`;
         setStatusMessage(
-          `Round ${payload.roundNumber} complete. ${winnerText} Score: ${currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} ${payload.hostScore} - ${payload.guestScore} ${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}`
+          `Round complete. Score: ${currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} ${payload.hostScore} - ${payload.guestScore} ${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}`
         );
         // Clear result after 3 seconds to allow players to see the result, or when a new move is played
         const resultTimeout = setTimeout(() => {
@@ -154,7 +178,7 @@ const MatchingPennies = () => {
           });
           setStatusMessage((prevMsg) => {
             // Only update if it's still the round complete message
-            if (prevMsg.includes('Round') && prevMsg.includes('complete')) {
+            if (prevMsg.includes('Round complete') || prevMsg.includes('Draw registered')) {
               return 'Ready for next round. Both players choose!';
             }
             return prevMsg;
@@ -205,6 +229,11 @@ const MatchingPennies = () => {
       if (payload.game) {
         setCurrentGame(payload.game);
         refreshGameDetails();
+        // Auto-start timer if game just started and has time per move
+        if (payload.gameType === 'MATCHING_PENNIES' && payload.game.penniesTimePerMove && payload.game.penniesTimePerMove > 0 && socket && payload.game.code) {
+          // Auto-start the timer for the first round
+          socket.emit('startRound', { code: payload.game.code, gameType: 'MATCHING_PENNIES' });
+        }
       }
     });
     socket.on('game:error', handleError);
@@ -278,6 +307,7 @@ const MatchingPennies = () => {
         // Reset game state
         setResult(null);
         setScores({ host: 0, guest: 0 });
+        setRoundsPlayed(0);
         setLockedChoice('');
         setOpponentLock('');
         setRoundNumber(0);
@@ -324,7 +354,7 @@ const MatchingPennies = () => {
       return;
     }
     if (lockedChoice) return;
-    if (scores.host >= 10 || scores.guest >= 10) return;
+    if (roundsPlayed >= 30) return; // Game already complete (30 rounds played)
     if (currentGame.status === 'COMPLETE') return; // Game already ended
     setLockedChoice(choice);
     setStatusMessage('Choice locked. Waiting for your opponent...');
@@ -363,19 +393,20 @@ const MatchingPennies = () => {
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/70">
               {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'}
             </p>
-            <p className={`text-3xl font-bold ${scores.host >= 10 ? 'text-aurora' : 'text-white'}`}>
+            <p className={`text-3xl font-bold ${roundsPlayed >= 30 && scores.host > scores.guest ? 'text-aurora' : 'text-white'}`}>
               {scores.host}
             </p>
           </div>
           <div className="text-center">
-            <p className="text-xs text-white/60">First to 10 wins</p>
+            <p className="text-xl font-bold text-white">30 rounds total</p>
             <p className="text-lg font-semibold text-white/40">VS</p>
+            <p className="text-xl font-bold text-white mt-1">Round {roundsPlayed}/30</p>
           </div>
           <div className="text-center">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/70">
               {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
             </p>
-            <p className={`text-3xl font-bold ${scores.guest >= 10 ? 'text-aurora' : 'text-white'}`}>
+            <p className={`text-3xl font-bold ${roundsPlayed >= 30 && scores.guest > scores.host ? 'text-aurora' : 'text-white'}`}>
               {scores.guest}
             </p>
           </div>
@@ -387,7 +418,9 @@ const MatchingPennies = () => {
           </p>
           <p className="text-base font-semibold text-white/90 mt-2">{roleDescription}</p>
         </div>
-        <p className="mt-4 text-white/60">{statusMessage || opponentStatus}</p>
+        <p className={`mt-4 ${statusMessage?.includes('Round complete') ? 'text-lg font-bold text-white' : 'text-white/60'}`}>
+          {statusMessage || opponentStatus}
+        </p>
       </header>
 
       <div className="rounded-3xl border border-white/10 bg-white/5 p-6 text-white">
@@ -417,7 +450,7 @@ const MatchingPennies = () => {
             <p className="text-base font-semibold uppercase tracking-[0.2em] text-white/70">
               {isHost ? (currentGame.guest?.studentName || currentGame.guest?.username || 'Challenger') : (currentGame.host?.studentName || currentGame.host?.username || 'Host')}
             </p>
-            <p className={`text-7xl mt-2 ${opponentLock ? '' : 'animate-pulse'}`}>
+            <p className={`text-6xl mt-2 ${opponentLock ? '' : 'animate-pulse'}`}>
               {opponentLock ? '⏳' : '⏳'}
             </p>
             <p className="text-base font-semibold text-white/80 mt-2">
@@ -442,7 +475,7 @@ const MatchingPennies = () => {
 
       <div className="grid gap-4 md:grid-cols-2">
         {choices.map((choice) => {
-          const isDisabled = !isJoined || lockedChoice !== '' || scores.host >= 10 || scores.guest >= 10;
+          const isDisabled = !isJoined || lockedChoice !== '' || roundsPlayed >= 30;
           return (
             <button
               key={choice.value}
@@ -470,17 +503,17 @@ const MatchingPennies = () => {
             ? 'border-aurora/60 bg-aurora/20' 
             : 'border-aurora/40 bg-aurora/10'
         }`}>
-          <p className="text-xs uppercase tracking-[0.4em] text-white/60">
+          <p className={`uppercase tracking-[0.4em] ${(result?.isGameComplete || currentGame?.status === 'COMPLETE') ? 'text-lg font-bold text-white' : 'text-xs text-white/60'}`}>
             {(result?.isGameComplete || currentGame?.status === 'COMPLETE') ? 'Match Complete' : 'Round Recap'}
           </p>
           {(result?.isGameComplete || currentGame?.status === 'COMPLETE') ? (
             <>
               <p className="text-4xl font-display text-aurora mt-2">
-                {(result?.winner || (currentGame?.hostPenniesScore >= 10 ? 'host' : currentGame?.guestPenniesScore >= 10 ? 'guest' : null)) === 'host' 
+                {result?.winner === 'host' 
                   ? `${currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} Wins!` 
-                  : (result?.winner || (currentGame?.hostPenniesScore >= 10 ? 'host' : currentGame?.guestPenniesScore >= 10 ? 'guest' : null)) === 'guest'
+                  : result?.winner === 'guest'
                     ? `${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} Wins!`
-                    : 'Match Complete!'}
+                    : 'Match Complete - Draw!'}
               </p>
               <p className="text-white/70 mt-2">
                 Final Score: {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} {result?.hostScore || currentGame?.hostPenniesScore || 0} - {result?.guestScore || currentGame?.guestPenniesScore || 0} {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
@@ -503,6 +536,7 @@ const MatchingPennies = () => {
                     setSelectedGameType(null);
                     setResult(null);
                     setScores({ host: 0, guest: 0 });
+                    setRoundsPlayed(0);
                     setLockedChoice('');
                     setOpponentLock('');
                     setRoundNumber(0);
@@ -541,100 +575,6 @@ const MatchingPennies = () => {
         </div>
       )}
 
-      {/* Show buttons when game is complete - ALWAYS show if status is COMPLETE or scores reach 10 */}
-      {((currentGame?.status === 'COMPLETE') || (currentGame?.hostPenniesScore >= 10 || currentGame?.guestPenniesScore >= 10) || (scores.host >= 10 || scores.guest >= 10)) && (
-        <div className="rounded-3xl border border-aurora/60 bg-aurora/20 p-6 text-center">
-          <p className="text-xs uppercase tracking-[0.4em] text-white/60">Match Complete</p>
-          <p className="text-4xl font-display text-aurora mt-2">
-            {((currentGame?.hostPenniesScore >= 10) || (scores.host >= 10))
-              ? `${currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} Wins!` 
-              : ((currentGame?.guestPenniesScore >= 10) || (scores.guest >= 10))
-                ? `${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} Wins!`
-                : 'Match Complete!'}
-          </p>
-          <p className="text-white/70 mt-2">
-            Final Score: {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} {currentGame?.hostPenniesScore || scores.host || 0} - {currentGame?.guestPenniesScore || scores.guest || 0} {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
-          </p>
-          <div className="flex gap-4 mt-4 justify-center">
-            <button
-              onClick={() => {
-                if (socket && currentGame?.code) {
-                  socket.emit('rematch:request', { 
-                    code: currentGame.code,
-                    gameType: 'MATCHING_PENNIES',
-                    gameSettings: { timePerMove: 15 }
-                  });
-                  setStatusMessage('Rematch request sent. Waiting for opponent...');
-                }
-              }}
-              className="rounded-lg bg-gradient-to-r from-aurora/20 to-royal/20 border border-aurora/50 px-6 py-3 text-sm font-bold text-white hover:from-aurora/30 hover:to-royal/30 transition"
-            >
-              Rematch
-            </button>
-            <button
-              onClick={() => {
-                resetGame();
-                setSelectedGameType(null);
-                navigate('/arena', { replace: true });
-              }}
-              className="rounded-lg border border-white/20 bg-white/5 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10 transition"
-            >
-              Exit to Arena
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* End Game Button */}
-      {currentGame?.guest && currentGame?.status !== 'COMPLETE' && scores.host < 10 && scores.guest < 10 && (
-        <div className="flex justify-end">
-          <button
-            onClick={async () => {
-              if (!currentGame?.code) return;
-              const hasAnyPoints = scores.host > 0 || scores.guest > 0;
-              const confirmText = hasAnyPoints 
-                ? 'Are you sure you want to resign? The game will end and your opponent will win.'
-                : 'Are you sure you want to cancel this game?';
-              if (!window.confirm(confirmText)) return;
-              
-              try {
-                const { data } = await api.post('/games/end-game', { code: currentGame.code });
-                // Show result immediately
-                const winnerName = data.winner === 'host'
-                  ? (currentGame?.host?.studentName || currentGame?.host?.username || 'Host')
-                  : data.winner === 'guest'
-                    ? (currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest')
-                    : null;
-                if (winnerName) {
-                  setStatusMessage(`${winnerName} wins! ${data.winner === 'host' ? data.game.hostPenniesScore : data.game.guestPenniesScore} - ${data.winner === 'host' ? data.game.guestPenniesScore : data.game.hostPenniesScore}`);
-                } else {
-                  setStatusMessage('Game ended in a draw!');
-                }
-                // Set final result for display
-                setResult({
-                  isGameComplete: true,
-                  winner: data.winner,
-                  hostScore: data.game.hostPenniesScore || 0,
-                  guestScore: data.game.guestPenniesScore || 0,
-                });
-                setScores({
-                  host: data.game.hostPenniesScore || 0,
-                  guest: data.game.guestPenniesScore || 0,
-                });
-                setCurrentGame(data.game);
-                await refreshGameDetails();
-              } catch (err) {
-                console.error('Failed to end game:', err);
-                setStatusMessage(err.response?.data?.message || 'Failed to end game');
-              }
-            }}
-            disabled={!isJoined}
-            className="rounded-lg border border-red-500/50 bg-red-500/10 px-6 py-3 text-sm font-semibold text-red-400 hover:bg-red-500/20 transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {scores.host > 0 || scores.guest > 0 ? 'Resign' : 'Cancel Game'}
-          </button>
-        </div>
-      )}
 
       <RematchModal
         isOpen={rematchModal.isOpen}

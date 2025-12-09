@@ -3,7 +3,7 @@ import api from '../services/api';
 import useGameStore from '../store/useGameStore';
 import useAuthStore from '../store/useAuthStore';
 
-const OnlinePlayers = () => {
+const OnlinePlayers = ({ onJoinGame }) => {
   const { currentGame, setCurrentGame, setStatusMessage, setSelectedGameType } = useGameStore();
   const user = useAuthStore((state) => state.user);
   const [searchQuery, setSearchQuery] = useState('');
@@ -148,6 +148,11 @@ const OnlinePlayers = () => {
       }
       setSearchQuery('');
       setSearchResults({ players: [], games: [] });
+      
+      // Switch to arena view after joining
+      if (onJoinGame) {
+        onJoinGame();
+      }
     } catch (err) {
       setStatusMessage(err.response?.data?.message || 'Failed to join game');
     }
