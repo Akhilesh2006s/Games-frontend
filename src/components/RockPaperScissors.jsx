@@ -453,7 +453,7 @@ const RockPaperScissors = () => {
             </p>
           </div>
         </div>
-        <p className={`mt-4 ${statusMessage?.includes('Round complete') ? 'text-lg font-bold text-white' : 'text-white/60'}`}>
+        <p className={`mt-4 ${(typeof statusMessage === 'string' && statusMessage.includes('Round complete')) ? 'text-lg font-bold text-white' : 'text-white/60'}`}>
           {statusMessage || opponentStatus}
         </p>
         {/* Timer Display - Game of Go Style (removed duplicate, timer is in player card) */}

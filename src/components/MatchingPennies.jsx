@@ -418,7 +418,7 @@ const MatchingPennies = () => {
           </p>
           <p className="text-base font-semibold text-white/90 mt-2">{roleDescription}</p>
         </div>
-        <p className={`mt-4 ${statusMessage?.includes('Round complete') ? 'text-lg font-bold text-white' : 'text-white/60'}`}>
+        <p className={`mt-4 ${(typeof statusMessage === 'string' && statusMessage.includes('Round complete')) ? 'text-lg font-bold text-white' : 'text-white/60'}`}>
           {statusMessage || opponentStatus}
         </p>
       </header>
