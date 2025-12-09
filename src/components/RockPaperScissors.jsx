@@ -36,6 +36,7 @@ const RockPaperScissors = () => {
   const [opponentStatus, setOpponentStatus] = useState('Create or join a code to begin.');
   const [waitSeconds, setWaitSeconds] = useState(0);
   const [scores, setScores] = useState({ host: 0, guest: 0 });
+  const [roundsPlayed, setRoundsPlayed] = useState(0);
   const [timeRemaining, setTimeRemaining] = useState(null);
   const timeRemainingRef = useRef(null);
   const [rematchModal, setRematchModal] = useState({ isOpen: false, opponentName: '', requesterId: null, gameType: null, gameSettings: null });
@@ -54,14 +55,22 @@ const RockPaperScissors = () => {
     try {
       const { data } = await api.get(`/games/code/${currentGame.code}`);
       setCurrentGame(data.game);
-      // If game is complete, ensure result persists
+      // If game is complete, ensure result persists and set rounds to 30
       if (data.game.status === 'COMPLETE' && !result) {
+        // Determine winner based on scores after 30 rounds
+        let winner = null;
+        if (data.game.hostScore > data.game.guestScore) {
+          winner = 'host';
+        } else if (data.game.guestScore > data.game.hostScore) {
+          winner = 'guest';
+        }
         setResult({
           isGameComplete: true,
-          winner: data.game.hostScore >= 10 ? 'host' : data.game.guestScore >= 10 ? 'guest' : null,
+          winner,
           hostScore: data.game.hostScore || 0,
           guestScore: data.game.guestScore || 0,
         });
+        setRoundsPlayed(30); // Game complete means 30 rounds played
       }
     } catch (err) {
       console.error('Failed to refresh arena state', err);
@@ -104,6 +113,10 @@ const RockPaperScissors = () => {
     setLockedMove('');
     setOpponentLock('');
     setWaitSeconds(0);
+    // Reset rounds played when game changes
+    if (!currentGame) {
+      setRoundsPlayed(0);
+    }
     if (!currentGame) {
       setOpponentStatus('Create or join a code to begin.');
       return;
@@ -151,9 +164,10 @@ const RockPaperScissors = () => {
       return;
     }
 
+    // Start timer from first round (READY status) or when game is in progress
     if (!lockedMove && !result && isJoined && (currentGame.status === 'IN_PROGRESS' || currentGame.status === 'READY')) {
       // Notify server that round has started (server will send timer updates)
-      if (socket && currentGame?.code && !lockedMove && currentGame.status === 'IN_PROGRESS') {
+      if (socket && currentGame?.code && !lockedMove) {
         socket.emit('startRound', { code: currentGame.code, gameType: 'ROCK_PAPER_SCISSORS' });
       }
     } else {
@@ -173,11 +187,23 @@ const RockPaperScissors = () => {
         guest: payload.guestScore || 0,
       });
       
+      // Update rounds played from payload
+      if (payload.roundsPlayed !== undefined) {
+        setRoundsPlayed(payload.roundsPlayed);
+      } else {
+        // Increment if not provided
+        setRoundsPlayed(prev => prev + 1);
+      }
+      
       if (payload.isGameComplete) {
         const winnerName = payload.winner === 'host' 
           ? (currentGame?.host?.studentName || currentGame?.host?.username)
           : (currentGame?.guest?.studentName || currentGame?.guest?.username);
-        setStatusMessage(`${winnerName} wins the match! First to 10 points.`);
+        if (payload.winner) {
+          setStatusMessage(`${winnerName} wins the match! Final score after 30 rounds.`);
+        } else {
+          setStatusMessage('Match complete! It\'s a draw after 30 rounds.');
+        }
         // Don't clear result when game is complete - keep it visible for both players
         // Don't refresh game details immediately to prevent clearing the result
         // refreshGameDetails will be called by other handlers if needed
@@ -250,6 +276,11 @@ const RockPaperScissors = () => {
       if (payload.game) {
         setCurrentGame(payload.game);
         refreshGameDetails();
+        // Auto-start timer if game just started and has time per move
+        if (payload.gameType === 'ROCK_PAPER_SCISSORS' && payload.game.rpsTimePerMove && payload.game.rpsTimePerMove > 0 && socket && payload.game.code) {
+          // Auto-start the timer for the first round
+          socket.emit('startRound', { code: payload.game.code, gameType: 'ROCK_PAPER_SCISSORS' });
+        }
       }
     });
     socket.on('game:error', handleError);
@@ -323,6 +354,7 @@ const RockPaperScissors = () => {
         // Reset game state
         setResult(null);
         setScores({ host: 0, guest: 0 });
+        setRoundsPlayed(0);
         setLockedMove('');
         setOpponentLock('');
         setStatusMessage('Rematch started! Both players connected.');
@@ -368,7 +400,7 @@ const RockPaperScissors = () => {
       return;
     }
     if (lockedMove) return; // Prevent double submission
-    if (scores.host >= 10 || scores.guest >= 10) return; // Game already complete
+    if (roundsPlayed >= 30) return; // Game already complete (30 rounds played)
     if (currentGame.status === 'COMPLETE') return; // Game already ended
     setLockedMove(choice);
     setStatusMessage('Hand locked. Waiting for your opponent...');
@@ -388,7 +420,7 @@ const RockPaperScissors = () => {
       <header>
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.4em] text-white/50">Stage 01</p>
+            <p className="text-xs uppercase tracking-[0.4em] text-white/50">Game 1</p>
             <h3 className="text-2xl font-semibold">Rock • Paper • Scissors</h3>
           </div>
           <div className="flex items-center gap-2">
@@ -403,19 +435,20 @@ const RockPaperScissors = () => {
             <p className="text-xs uppercase tracking-[0.4em] text-white/50">
               {currentGame?.host?.username || 'Host'}
             </p>
-            <p className={`text-3xl font-bold ${scores.host >= 10 ? 'text-aurora' : 'text-white'}`}>
+            <p className={`text-3xl font-bold ${roundsPlayed >= 30 && scores.host > scores.guest ? 'text-aurora' : 'text-white'}`}>
               {scores.host}
             </p>
           </div>
           <div className="text-center">
-            <p className="text-xs text-white/60">First to 10 wins</p>
+            <p className="text-xl font-bold text-white">30 rounds total</p>
             <p className="text-lg font-semibold text-white/40">VS</p>
+            <p className="text-xl font-bold text-white mt-1">Round {roundsPlayed}/30</p>
           </div>
           <div className="text-center">
             <p className="text-xs uppercase tracking-[0.4em] text-white/50">
               {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
             </p>
-            <p className={`text-3xl font-bold ${scores.guest >= 10 ? 'text-aurora' : 'text-white'}`}>
+            <p className={`text-3xl font-bold ${roundsPlayed >= 30 && scores.guest > scores.host ? 'text-aurora' : 'text-white'}`}>
               {scores.guest}
             </p>
           </div>
@@ -477,7 +510,7 @@ const RockPaperScissors = () => {
 
       <div className="grid gap-4 md:grid-cols-3">
         {moves.map((move) => {
-          const isDisabled = !isJoined || lockedMove !== '' || scores.host >= 10 || scores.guest >= 10;
+          const isDisabled = !isJoined || lockedMove !== '' || roundsPlayed >= 30;
           return (
             <button
               key={move.value}
@@ -514,11 +547,11 @@ const RockPaperScissors = () => {
           {(result?.isGameComplete || currentGame?.status === 'COMPLETE') ? (
             <>
               <p className="text-4xl font-display text-aurora mt-2">
-                {(result?.winner || (currentGame?.hostScore >= 10 ? 'host' : currentGame?.guestScore >= 10 ? 'guest' : null)) === 'host' 
+                {result?.winner === 'host' 
                   ? `${currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} Wins!` 
-                  : (result?.winner || (currentGame?.hostScore >= 10 ? 'host' : currentGame?.guestScore >= 10 ? 'guest' : null)) === 'guest'
+                  : result?.winner === 'guest'
                     ? `${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} Wins!`
-                    : 'Match Complete!'}
+                    : 'Match Complete - Draw!'}
               </p>
               <p className="text-white/70 mt-2">
                 Final Score: {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} {result?.hostScore || currentGame?.hostScore || 0} - {result?.guestScore || currentGame?.guestScore || 0} {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
@@ -542,11 +575,12 @@ const RockPaperScissors = () => {
                         if (!selectedGameType) {
                           setSelectedGameType('ROCK_PAPER_SCISSORS');
                         }
-                        setStatusMessage('Rematch game created! Share the code with your opponent.');
-                        setResult(null);
-                        setScores({ host: 0, guest: 0 });
-                        setLockedMove('');
-                        setOpponentLock('');
+                    setStatusMessage('Rematch game created! Share the code with your opponent.');
+                    setResult(null);
+                    setScores({ host: 0, guest: 0 });
+                    setRoundsPlayed(0);
+                    setLockedMove('');
+                    setOpponentLock('');
                       }
                     } catch (err) {
                       setStatusMessage(err.response?.data?.message || 'Failed to create rematch');
@@ -562,6 +596,7 @@ const RockPaperScissors = () => {
                     setSelectedGameType(null);
                     setResult(null);
                     setScores({ host: 0, guest: 0 });
+                    setRoundsPlayed(0);
                     setLockedMove('');
                     setOpponentLock('');
                     // Navigate to arena page (home)
@@ -594,16 +629,16 @@ const RockPaperScissors = () => {
         </div>
       )}
 
-      {/* Show buttons when game is complete - ALWAYS show if status is COMPLETE or scores reach 10 */}
-      {((currentGame?.status === 'COMPLETE') || (currentGame?.hostScore >= 10 || currentGame?.guestScore >= 10) || (scores.host >= 10 || scores.guest >= 10)) && (
+      {/* Show buttons when game is complete - ALWAYS show if status is COMPLETE or 30 rounds played */}
+      {((currentGame?.status === 'COMPLETE') || (roundsPlayed >= 30)) && (
         <div className="rounded-3xl border border-aurora/60 bg-aurora/20 p-6 text-center">
           <p className="text-xs uppercase tracking-[0.4em] text-white/60">Match Complete</p>
           <p className="text-4xl font-display text-aurora mt-2">
-            {((currentGame?.hostScore >= 10) || (scores.host >= 10))
+            {scores.host > scores.guest
               ? `${currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} Wins!` 
-              : ((currentGame?.guestScore >= 10) || (scores.guest >= 10))
+              : scores.guest > scores.host
                 ? `${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} Wins!`
-                : 'Match Complete!'}
+                : 'Match Complete - Draw!'}
           </p>
           <p className="text-white/70 mt-2">
             Final Score: {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} {currentGame?.hostScore || scores.host || 0} - {currentGame?.guestScore || scores.guest || 0} {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
@@ -649,56 +684,6 @@ const RockPaperScissors = () => {
         </div>
       )}
 
-      {/* End Game Button */}
-      {currentGame?.guest && currentGame?.status !== 'COMPLETE' && scores.host < 10 && scores.guest < 10 && (
-        <div className="flex justify-end">
-          <button
-            onClick={async () => {
-              if (!currentGame?.code) return;
-              const hasAnyPoints = scores.host > 0 || scores.guest > 0;
-              const confirmText = hasAnyPoints 
-                ? 'Are you sure you want to resign? The game will end and your opponent will win.'
-                : 'Are you sure you want to cancel this game?';
-              if (!window.confirm(confirmText)) return;
-              
-              try {
-                const { data } = await api.post('/games/end-game', { code: currentGame.code });
-                // Show result immediately
-                const winnerName = data.winner === 'host'
-                  ? (currentGame?.host?.studentName || currentGame?.host?.username || 'Host')
-                  : data.winner === 'guest'
-                    ? (currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest')
-                    : null;
-                if (winnerName) {
-                  setStatusMessage(`${winnerName} wins! ${data.winner === 'host' ? data.game.hostScore : data.game.guestScore} - ${data.winner === 'host' ? data.game.guestScore : data.game.hostScore}`);
-                } else {
-                  setStatusMessage('Game ended in a draw!');
-                }
-                // Set final result for display
-                setResult({
-                  isGameComplete: true,
-                  winner: data.winner,
-                  hostScore: data.game.hostScore || 0,
-                  guestScore: data.game.guestScore || 0,
-                });
-                setScores({
-                  host: data.game.hostScore || 0,
-                  guest: data.game.guestScore || 0,
-                });
-                setCurrentGame(data.game);
-                await refreshGameDetails();
-              } catch (err) {
-                console.error('Failed to end game:', err);
-                setStatusMessage(err.response?.data?.message || 'Failed to end game');
-              }
-            }}
-            disabled={!isJoined}
-            className="rounded-lg border border-red-500/50 bg-red-500/10 px-6 py-3 text-sm font-semibold text-red-400 hover:bg-red-500/20 transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {scores.host > 0 || scores.guest > 0 ? 'Resign' : 'Cancel Game'}
-          </button>
-        </div>
-      )}
 
       <RematchModal
         isOpen={rematchModal.isOpen}
