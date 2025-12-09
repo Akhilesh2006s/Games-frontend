@@ -488,19 +488,21 @@ const MatchingPennies = () => {
               key={choice.value}
               onClick={() => submitChoice(choice.value)}
               disabled={isDisabled}
-              className={`rounded-3xl border border-white/10 bg-white/5 px-6 py-8 text-center transition hover:-translate-y-1 w-full flex flex-col items-center justify-center min-h-[200px] ${
+              className={`rounded-3xl border border-white/10 bg-white/5 px-6 py-8 text-center transition hover:-translate-y-1 w-full flex flex-col items-center justify-between min-h-[200px] ${
                 lockedChoice === choice.value ? 'ring-2 ring-aurora' : ''
               } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              <div className="flex items-center justify-center h-20 mb-4">
-                <p className="text-6xl">{choice.icon}</p>
+              <div className="flex-1 flex items-center justify-center min-h-[80px]">
+                <span className="text-6xl leading-none">{choice.icon}</span>
               </div>
-              <p className="text-lg font-semibold uppercase tracking-[0.4em] text-white/50 mb-2">
-                {choice.label}
-              </p>
-              <p className="text-white/70 text-sm">
-                Choose this side
-              </p>
+              <div className="flex flex-col items-center gap-2 w-full">
+                <p className="text-lg font-semibold uppercase tracking-[0.4em] text-white/50">
+                  {choice.label}
+                </p>
+                <p className="text-white/70 text-sm">
+                  Choose this side
+                </p>
+              </div>
             </button>
           );
         })}
