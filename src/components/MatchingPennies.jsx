@@ -395,7 +395,7 @@ const MatchingPennies = () => {
           <div className="flex-1 rounded-2xl border border-white/5 bg-night/20 p-4 text-center">
             <p className="text-xs uppercase tracking-[0.4em] text-white/50">You</p>
             <p className={`text-6xl ${lockedChoice ? '' : 'animate-pulse'}`}>
-              {lockedChoice === 'heads' ? '👑' : lockedChoice === 'tails' ? '🦅' : '🪙'}
+              {lockedChoice === 'heads' ? '👑' : lockedChoice === 'tails' ? '🦅' : '⏳'}
             </p>
             <p className="text-white/60">
               {lockedChoice ? `Locked ${lockedChoice.toUpperCase()}` : 'Choose heads or tails'}
@@ -418,7 +418,7 @@ const MatchingPennies = () => {
               {isHost ? (currentGame.guest?.studentName || currentGame.guest?.username || 'Challenger') : (currentGame.host?.studentName || currentGame.host?.username || 'Host')}
             </p>
             <p className={`text-7xl mt-2 ${opponentLock ? '' : 'animate-pulse'}`}>
-              {opponentLock ? '🪙' : '⌛'}
+              {opponentLock === 'heads' ? '👑' : opponentLock === 'tails' ? '🦅' : '⏳'}
             </p>
             <p className="text-base font-semibold text-white/80 mt-2">
               {opponentLock || (currentGame?.guest ? 'Waiting for lock' : 'Opponent pending')}
