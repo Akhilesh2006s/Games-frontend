@@ -453,14 +453,14 @@ const MatchingPennies = () => {
               </div>
             )}
           </div>
-          <div className="flex-1 rounded-2xl border border-white/5 bg-night/20 p-6 text-center">
-            <p className="text-base font-semibold uppercase tracking-[0.2em] text-white/70">
+          <div className="flex-1 rounded-2xl border border-white/5 bg-night/20 p-4 text-center">
+            <p className="text-xs uppercase tracking-[0.4em] text-white/50 mb-1">
               {isHost ? (currentGame.guest?.studentName || currentGame.guest?.username || 'Challenger') : (currentGame.host?.studentName || currentGame.host?.username || 'Host')}
             </p>
-            <p className={`text-6xl mt-2 ${opponentLock ? '' : 'animate-pulse'}`}>
+            <p className={`text-6xl  ${opponentLock ? '' : 'animate-pulse'}`}>
               {opponentLock ? '⏳' : '⏳'}
             </p>
-            <p className="text-base font-semibold text-white/80 mt-2">
+            <p className="text-white/60">
               {opponentLock || (currentGame?.guest ? 'Waiting for lock' : 'Opponent pending')}
             </p>
             {/* Timer Display for Opponent - Game of Go Style */}
