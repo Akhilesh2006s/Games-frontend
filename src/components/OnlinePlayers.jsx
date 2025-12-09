@@ -31,11 +31,11 @@ const OnlinePlayers = () => {
           const settings = game.pendingGameSettings;
           const boardSize = settings.boardSize || game.goBoardSize || '9';
           const timeControl = settings.timeControl;
-          if (timeControl && timeControl.enabled) {
+          if (timeControl && timeControl.mode && timeControl.mode !== 'none' && timeControl.mainTime > 0) {
             if (timeControl.mode === 'fischer') {
-              gameDetails = `${boardSize}x${boardSize} • Fischer (${timeControl.mainTime}s + ${timeControl.increment}s)`;
+              gameDetails = `${boardSize}x${boardSize} • Fischer (${timeControl.mainTime}s + ${timeControl.increment || 0}s)`;
             } else if (timeControl.mode === 'japanese') {
-              gameDetails = `${boardSize}x${boardSize} • Japanese Byo-Yomi (${timeControl.mainTime}s main, ${timeControl.byoYomiTime}s periods)`;
+              gameDetails = `${boardSize}x${boardSize} • Japanese Byo-Yomi (${timeControl.mainTime}s main, ${timeControl.byoYomiTime || 0}s periods)`;
             } else {
               gameDetails = `${boardSize}x${boardSize} • ${timeControl.mode}`;
             }
@@ -51,7 +51,18 @@ const OnlinePlayers = () => {
         gameType = game.activeStage;
         if (gameType === 'GAME_OF_GO') {
           const boardSize = game.goBoardSize || '9';
-          gameDetails = `${boardSize}x${boardSize} board`;
+          const timeControl = game.goTimeControl;
+          if (timeControl && timeControl.mode && timeControl.mode !== 'none' && timeControl.mainTime > 0) {
+            if (timeControl.mode === 'fischer') {
+              gameDetails = `${boardSize}x${boardSize} • Fischer (${timeControl.mainTime}s + ${timeControl.increment || 0}s)`;
+            } else if (timeControl.mode === 'japanese') {
+              gameDetails = `${boardSize}x${boardSize} • Japanese Byo-Yomi (${timeControl.mainTime}s main, ${timeControl.byoYomiTime || 0}s periods)`;
+            } else {
+              gameDetails = `${boardSize}x${boardSize} • ${timeControl.mode}`;
+            }
+          } else {
+            gameDetails = `${boardSize}x${boardSize} • No time control`;
+          }
         } else if (gameType === 'ROCK_PAPER_SCISSORS') {
           gameDetails = '15 seconds per move';
         } else if (gameType === 'MATCHING_PENNIES') {
@@ -79,6 +90,14 @@ const OnlinePlayers = () => {
       const { data } = await api.get('/games/search', {
         params: { query: searchQuery || '', type: searchType },
       });
+      // Debug: Log games data to see what we're getting
+      if (data.games && data.games.length > 0) {
+        console.log('Games with pendingGameSettings:', data.games.filter(g => g.pendingGameSettings).map(g => ({
+          code: g.code,
+          pendingGameSettings: g.pendingGameSettings,
+          activeStage: g.activeStage
+        })));
+      }
       // Ensure we have the expected structure
       setSearchResults({
         players: data.players || [],
@@ -211,9 +230,9 @@ const OnlinePlayers = () => {
                 Online Players ({playersWithCodes.length})
               </h3>
               <div className="space-y-3">
-                {playersWithCodes.map((player) => (
+                {playersWithCodes.map((player, index) => (
                   <div
-                    key={player._id || player.gameId}
+                    key={player.gameId || `${player._id}-${player.gameCode}-${index}`}
                     className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
                   >
                     <div className="flex-1">
@@ -223,19 +242,23 @@ const OnlinePlayers = () => {
                       {player.enrollmentNo && (
                         <p className="text-sm text-white/60 mt-1">Enrollment: {player.enrollmentNo}</p>
                       )}
-                      <p className="text-xs text-white/40 mt-1 font-mono">Game Code: {player.gameCode}</p>
-                      {player.gameType && player.gameType !== 'Not Selected' && (
-                        <div className="mt-3 space-y-1">
+                      {player.gameType && player.gameType !== 'Not Selected' ? (
+                        <div className="mt-2 space-y-1">
                           <p className="text-sm text-aurora font-semibold">
                             {player.gameType === 'GAME_OF_GO' ? 'Game of Go' : 
                              player.gameType === 'ROCK_PAPER_SCISSORS' ? 'Rock Paper Scissors' :
                              player.gameType === 'MATCHING_PENNIES' ? 'Matching Pennies' : player.gameType}
                           </p>
                           {player.gameDetails && (
-                            <p className="text-xs text-white/60 mt-1">{player.gameDetails}</p>
+                            <p className="text-xs text-white/60">{player.gameDetails}</p>
                           )}
                         </div>
+                      ) : (
+                        <div className="mt-2">
+                          <p className="text-xs text-white/50 italic">No game selected yet</p>
+                        </div>
                       )}
+                      <p className="text-xs text-white/40 mt-2 font-mono">Game Code: {player.gameCode}</p>
                     </div>
                     <button
                       onClick={() => handleJoinGame(player.gameCode)}

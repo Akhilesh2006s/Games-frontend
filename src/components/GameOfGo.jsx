@@ -393,17 +393,25 @@ const GameOfGo = () => {
 
     const handleTimeExpired = (payload) => {
       setGamePhase('COMPLETE');
-      // Create clear win reason message
-      const expiredColor = payload.expiredColor || 'unknown';
-      const winnerColor = expiredColor === 'black' ? 'white' : 'black';
-      const winnerName = winnerColor === 'black'
-        ? (currentGame?.host?.studentName || currentGame?.host?.username || 'Black')
-        : (currentGame?.guest?.studentName || currentGame?.guest?.username || 'White');
-      const expiredName = expiredColor === 'black'
-        ? (currentGame?.host?.studentName || currentGame?.host?.username || 'Black')
-        : (currentGame?.guest?.studentName || currentGame?.guest?.username || 'White');
-      const clearMessage = `${expiredName} (${expiredColor === 'black' ? 'Black' : 'White'}) ran out of time. ${winnerName} (${winnerColor === 'black' ? 'Black' : 'White'}) wins.`;
-      setStatusMessage(payload.message || clearMessage);
+      // Set finalScore with reason but NO scoring details
+      setFinalScore({
+        winner: payload.winner,
+        reason: 'timeout',
+        message: payload.message,
+      });
+      setStatusMessage(payload.message || 'Time expired');
+      refreshGameDetails();
+    };
+
+    const handleResigned = (payload) => {
+      setGamePhase('COMPLETE');
+      // Set finalScore with reason but NO scoring details
+      setFinalScore({
+        winner: payload.winner,
+        reason: 'resignation',
+        message: payload.message,
+      });
+      setStatusMessage(payload.message || 'Game resigned');
       refreshGameDetails();
     };
 

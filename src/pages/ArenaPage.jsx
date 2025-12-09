@@ -123,6 +123,29 @@ const ArenaPage = () => {
       const { data: gameData } = await api.post('/games/create');
       setCurrentGame(gameData.game);
       setSelectedGameType('GAME_OF_GO');
+      
+      // Call start-go endpoint to set pendingGameSettings
+      const requestBody = {
+        code: gameData.game.code,
+        boardSize: goConfig.boardSize,
+      };
+      
+      if (goConfig.timeControl.enabled) {
+        requestBody.timeControl = {
+          mode: goConfig.timeControl.mode,
+          mainTime: goConfig.timeControl.mainTime,
+          increment: goConfig.timeControl.increment,
+          byoYomiTime: goConfig.timeControl.byoYomiTime,
+          byoYomiPeriods: goConfig.timeControl.byoYomiPeriods,
+        };
+      }
+      
+      await api.post('/games/start-go', requestBody);
+      
+      // Refresh game to get updated state with pendingGameSettings
+      const { data: updatedGame } = await api.get(`/games/code/${gameData.game.code}`);
+      setCurrentGame(updatedGame.game);
+      
       setStatusMessage('Game code created! Share the code with your opponent. Game will start automatically when they join.');
     } catch (err) {
       console.error('Failed to create game:', err);
@@ -160,13 +183,41 @@ const ArenaPage = () => {
   const handleSelectGame = async (gameType) => {
     if (creatingGame) return;
     
-    // For RPS and Matching Pennies, automatically create code and enter lobby
+    // For RPS and Matching Pennies, automatically create code and set pendingGameSettings
     if (gameType === 'ROCK_PAPER_SCISSORS' || gameType === 'MATCHING_PENNIES') {
       setCreatingGame(true);
       try {
+        // First create the game code
         const { data: gameData } = await api.post('/games/create');
         setCurrentGame(gameData.game);
         setSelectedGameType(gameType);
+        
+        // Then call the start endpoint to set pendingGameSettings
+        try {
+          if (gameType === 'ROCK_PAPER_SCISSORS') {
+            const startResponse = await api.post('/games/start-rps', {
+              code: gameData.game.code,
+              timePerMove: 15, // Fixed 15 seconds
+            });
+            console.log('Start RPS response:', startResponse.data);
+          } else if (gameType === 'MATCHING_PENNIES') {
+            const startResponse = await api.post('/games/start-pennies', {
+              code: gameData.game.code,
+              timePerMove: 15, // Fixed 15 seconds
+            });
+            console.log('Start Pennies response:', startResponse.data);
+          }
+        } catch (startErr) {
+          console.error('Failed to start game:', startErr);
+          console.error('Start error details:', startErr.response?.data);
+        }
+        
+        // Refresh game to get updated state with pendingGameSettings
+        const { data: updatedGame } = await api.get(`/games/code/${gameData.game.code}`);
+        console.log('Updated game after start:', updatedGame.game);
+        console.log('PendingGameSettings:', updatedGame.game.pendingGameSettings);
+        setCurrentGame(updatedGame.game);
+        
         setStatusMessage('Game code created! Share the code with your opponent. Game will start automatically when they join.');
       } catch (err) {
         console.error('Failed to create game:', err);
