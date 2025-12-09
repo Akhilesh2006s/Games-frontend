@@ -4,7 +4,7 @@ import useGameStore from '../store/useGameStore';
 import useAuthStore from '../store/useAuthStore';
 
 const OnlinePlayers = () => {
-  const { currentGame, setCurrentGame, setStatusMessage } = useGameStore();
+  const { currentGame, setCurrentGame, setStatusMessage, setSelectedGameType } = useGameStore();
   const user = useAuthStore((state) => state.user);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchType, setSearchType] = useState('all'); // 'all', 'code', 'enrollment', 'name'
@@ -111,7 +111,15 @@ const OnlinePlayers = () => {
     try {
       const { data } = await api.post('/games/join', { code: code.trim().toUpperCase() });
       setCurrentGame(data.game);
-      setStatusMessage('Both players connected! Choose a game to play.');
+      
+      // Set selected game type from pendingGameSettings or activeStage to trigger auto-start
+      if (data.game.pendingGameSettings?.gameType) {
+        setSelectedGameType(data.game.pendingGameSettings.gameType);
+      } else if (data.game.activeStage) {
+        setSelectedGameType(data.game.activeStage);
+      }
+      
+      setStatusMessage('Both players connected! Game will start automatically.');
       setSearchQuery('');
       setSearchResults({ players: [], games: [] });
     } catch (err) {
