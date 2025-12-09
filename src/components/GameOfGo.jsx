@@ -420,6 +420,7 @@ const GameOfGo = () => {
     socket.on('goPass', handlePass);
     socket.on('goTimeUpdate', handleTimeUpdate);
     socket.on('goTimeExpired', handleTimeExpired);
+    socket.on('goResigned', handleResigned);
     socket.on('goScoreFinalized', handleScoreFinalized);
     socket.on('game:joined', handleJoined);
     socket.on('game:peer_joined', handlePeerJoined);
@@ -590,13 +591,12 @@ const GameOfGo = () => {
       return;
     }
 
-    const confirmEnd = window.confirm('Are you sure you want to end the game? The winner will be determined by current score.');
-    if (!confirmEnd) return;
+    const confirmResign = window.confirm('Are you sure you want to resign? Your opponent will win.');
+    if (!confirmResign) return;
 
-    // Force end game by calculating score immediately
-    socket.emit('finalizeGoScore', { 
-      code: currentGame.code, 
-      method: 'chinese' // Default to Chinese scoring
+    // Resign - ends game without scoring
+    socket.emit('resignGo', { 
+      code: currentGame.code
     });
   };
 
@@ -820,7 +820,9 @@ const GameOfGo = () => {
       {gamePhase === 'COMPLETE' && finalScore && (
         <div className="rounded-2xl border-2 border-aurora/50 bg-gradient-to-br from-aurora/20 to-royal/20 p-6 text-center">
           <h3 className="text-2xl font-bold text-white mb-4">Game Complete!</h3>
-          <div className="grid grid-cols-2 gap-4 mb-4">
+          {/* Only show scoring details if game ended normally (no reason field) */}
+          {!finalScore.reason && finalScore.black && finalScore.white && (
+            <div className="grid grid-cols-2 gap-4 mb-4">
             <div className="bg-white/10 rounded-xl p-4">
               <p className="text-xs uppercase tracking-wider text-white/60 mb-2">Black</p>
               <p className="text-3xl font-bold text-white mb-2">{finalScore.black?.score || 0}</p>
@@ -844,7 +846,9 @@ const GameOfGo = () => {
                 </p>
                     </div>
                     </div>
-          </div>
+            </div>
+          )}
+          
           {finalScore.winner && (
             <div className="mt-4">
               <p className="text-lg font-semibold text-white/80 mb-2">Winner:</p>
@@ -856,7 +860,7 @@ const GameOfGo = () => {
               </p>
             </div>
           )}
-          {finalScore.winner === null && (
+          {finalScore.winner === null && !finalScore.reason && (
             <div className="mt-4">
               <p className="text-xl font-semibold text-white">It's a Draw!</p>
             </div>
@@ -892,8 +896,19 @@ const GameOfGo = () => {
               Exit to Arena
             </button>
           </div>
-          {/* Display clear win reason */}
-          {statusMessage && (
+          {/* Display clear win reason for resignation/timeout/disconnect */}
+          {finalScore?.reason && finalScore?.message && (
+            <p className="text-sm text-white/70 mt-3 italic">
+              {finalScore.message.replace(/Black|White/g, (match) => {
+                const isBlack = match === 'Black';
+                const playerName = isBlack 
+                  ? (currentGame?.host?.studentName || currentGame?.host?.username || 'Black')
+                  : (currentGame?.guest?.studentName || currentGame?.guest?.username || 'White');
+                return playerName;
+              })}
+            </p>
+          )}
+          {!finalScore?.reason && statusMessage && (
             <p className="text-sm text-white/70 mt-3 italic">
               {statusMessage.includes('ran out of time') || statusMessage.includes('Time expired') 
                 ? statusMessage.replace(/Black|White/g, (match) => {
