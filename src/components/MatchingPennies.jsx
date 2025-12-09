@@ -492,11 +492,13 @@ const MatchingPennies = () => {
                 lockedChoice === choice.value ? 'ring-2 ring-aurora' : ''
               } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              <p className="text-6xl">{choice.icon}</p>
-              <p className="mt-4 text-lg font-semibold uppercase tracking-[0.4em] text-white/50">
+              <div className="flex items-center justify-center h-20 mb-4">
+                <p className="text-6xl">{choice.icon}</p>
+              </div>
+              <p className="text-lg font-semibold uppercase tracking-[0.4em] text-white/50 mb-2">
                 {choice.label}
               </p>
-              <p className="text-white/70 mt-2">
+              <p className="text-white/70 text-sm">
                 Choose this side
               </p>
             </button>
