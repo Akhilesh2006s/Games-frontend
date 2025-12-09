@@ -480,6 +480,7 @@ const GameOfGo = () => {
 
     const handleRematchAccepted = async (payload) => {
       setRematchModal({ isOpen: false, opponentName: '', requesterId: null, gameType: null, gameSettings: null });
+      setRematchStartModal({ isOpen: false, opponentName: '', gameSettings: null });
       if (payload.game) {
         setCurrentGame(payload.game);
         // Set game type for auto-start
@@ -507,25 +508,38 @@ const GameOfGo = () => {
           ? (payload.game?.guest?.studentName || payload.game?.guest?.username || 'Opponent')
           : (payload.game?.host?.studentName || payload.game?.host?.username || 'Opponent');
         
-        // Show rematch start modal to host
-        if (isHost) {
-          const gameSettings = {
-            boardSize: payload.game?.goBoardSize || 9,
-            timeControl: payload.game?.goTimeControl || null,
-          };
-          setRematchStartModal({ 
-            isOpen: true, 
-            opponentName,
-            gameSettings 
-          });
-          setStatusMessage(`${opponentName} accepted the rematch. Click Start to begin!`);
-        } else {
-          setStatusMessage(`${opponentName} accepted the rematch. Waiting for host to start...`);
-        }
-        
-        // Join new game room
+        // Join new game room first
         if (socket && payload.newCode) {
           socket.emit('joinGame', { code: payload.newCode });
+        }
+        
+        // Auto-start the game immediately (host starts it)
+        if (isHost && payload.game?.code) {
+          try {
+            const requestBody = {
+              code: payload.game.code,
+              boardSize: payload.game?.goBoardSize || 9,
+            };
+            
+            if (payload.game?.goTimeControl && payload.game.goTimeControl.mode && payload.game.goTimeControl.mode !== 'none') {
+              requestBody.timeControl = payload.game.goTimeControl;
+            }
+            
+            // Wait a bit for room join to complete
+            setTimeout(async () => {
+              try {
+                await api.post('/games/start-go', requestBody);
+                setStatusMessage('Rematch started! Black plays first.');
+              } catch (err) {
+                console.error('Failed to start rematch:', err);
+                setStatusMessage(err.response?.data?.message || 'Failed to start rematch');
+              }
+            }, 500);
+          } catch (err) {
+            console.error('Failed to prepare rematch start:', err);
+          }
+        } else {
+          setStatusMessage(`${opponentName} accepted the rematch. Game starting...`);
         }
       }
     };
@@ -1112,70 +1126,6 @@ const GameOfGo = () => {
         </div>
       )}
 
-      {/* Rematch Start Modal */}
-      {rematchStartModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="glass-panel border-2 border-aurora/50 p-8 max-w-md w-full mx-4 text-white">
-            <h2 className="text-2xl font-bold mb-2 text-aurora">Rematch Accepted</h2>
-            <p className="text-white/80 mb-6">
-              <span className="font-semibold">{rematchStartModal.opponentName}</span> accepted the rematch!
-            </p>
-            {rematchStartModal.gameSettings && (
-              <div className="bg-white/5 rounded-lg p-4 mb-6 space-y-2">
-                <p className="text-sm text-white/70">
-                  <span className="font-semibold">Board Size:</span> {rematchStartModal.gameSettings.boardSize}x{rematchStartModal.gameSettings.boardSize}
-                </p>
-                {rematchStartModal.gameSettings.timeControl && rematchStartModal.gameSettings.timeControl.mode !== 'none' ? (
-                  <div className="text-sm text-white/70">
-                    <span className="font-semibold">Time Control:</span>
-                    <ul className="ml-4 mt-1 space-y-1">
-                      <li>Mode: {rematchStartModal.gameSettings.timeControl.mode === 'fischer' ? 'Fischer' : 'Japanese'}</li>
-                      <li>Main Time: {Math.floor(rematchStartModal.gameSettings.timeControl.mainTime / 60)}:{(rematchStartModal.gameSettings.timeControl.mainTime % 60).toString().padStart(2, '0')}</li>
-                      {rematchStartModal.gameSettings.timeControl.mode === 'fischer' && rematchStartModal.gameSettings.timeControl.increment > 0 && (
-                        <li>Increment: +{rematchStartModal.gameSettings.timeControl.increment}s</li>
-                      )}
-                      {rematchStartModal.gameSettings.timeControl.mode === 'japanese' && rematchStartModal.gameSettings.timeControl.byoYomiTime > 0 && (
-                        <li>Byo-yomi: {rematchStartModal.gameSettings.timeControl.byoYomiTime}s ({rematchStartModal.gameSettings.timeControl.byoYomiPeriods} periods)</li>
-                      )}
-                    </ul>
-                  </div>
-                ) : (
-                  <p className="text-sm text-white/70">
-                    <span className="font-semibold">Time Control:</span> None
-                  </p>
-                )}
-              </div>
-            )}
-            <div className="flex gap-4">
-              <button
-                onClick={async () => {
-                  if (!currentGame?.code) return;
-                  try {
-                    const requestBody = {
-                      code: currentGame.code,
-                      boardSize: rematchStartModal.gameSettings?.boardSize || 9,
-                    };
-                    
-                    if (rematchStartModal.gameSettings?.timeControl && rematchStartModal.gameSettings.timeControl.mode !== 'none') {
-                      requestBody.timeControl = rematchStartModal.gameSettings.timeControl;
-                    }
-                    
-                    await api.post('/games/start-go', requestBody);
-                    setRematchStartModal({ isOpen: false, opponentName: '', gameSettings: null });
-                    setStatusMessage('Rematch started! Black plays first.');
-                  } catch (err) {
-                    console.error('Failed to start rematch:', err);
-                    setStatusMessage(err.response?.data?.message || 'Failed to start rematch');
-                  }
-                }}
-                className="flex-1 rounded-lg bg-gradient-to-r from-aurora/20 to-royal/20 border border-aurora/50 px-6 py-3 text-sm font-semibold text-white hover:from-aurora/30 hover:to-royal/30 transition"
-              >
-                Start Match
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </section>
   );
 };

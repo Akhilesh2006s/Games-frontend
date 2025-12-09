@@ -433,10 +433,12 @@ const MatchingPennies = () => {
       <div className="rounded-3xl border border-white/10 bg-white/5 p-6 text-white">
         <div className="flex flex-col gap-6 md:flex-row md:items-stretch md:justify-between">
           <div className="flex-1 rounded-2xl border border-white/5 bg-night/20 p-4 text-center">
-            <p className="text-xs uppercase tracking-[0.4em] text-white/50">You</p>
-            <p className={`text-6xl ${lockedChoice ? '' : 'animate-pulse'}`}>
-              {lockedChoice === 'heads' ? '👑' : lockedChoice === 'tails' ? '🦅' : '⏳'}
-            </p>
+            <p className="text-xs uppercase tracking-[0.4em] text-white/50 mb-2">You</p>
+            <div className="flex items-center justify-center h-16 mb-2">
+              <p className={`text-6xl leading-none ${lockedChoice ? '' : 'animate-pulse'}`}>
+                {lockedChoice === 'heads' ? '👑' : lockedChoice === 'tails' ? '🦅' : '⏳'}
+              </p>
+            </div>
             <p className="text-white/60">
               {lockedChoice ? `Locked ${lockedChoice.toUpperCase()}` : 'Choose heads or tails'}
             </p>
@@ -453,14 +455,16 @@ const MatchingPennies = () => {
               </div>
             )}
           </div>
-          <div className="flex-1 rounded-2xl border border-white/5 bg-night/20 p-6 text-center">
-            <p className="text-base font-semibold uppercase tracking-[0.2em] text-white/70">
+          <div className="flex-1 rounded-2xl border border-white/5 bg-night/20 p-4 text-center">
+            <p className="text-xs uppercase tracking-[0.4em] text-white/50 mb-2">
               {isHost ? (currentGame.guest?.studentName || currentGame.guest?.username || 'Challenger') : (currentGame.host?.studentName || currentGame.host?.username || 'Host')}
             </p>
-            <p className={`text-6xl mt-2 ${opponentLock ? '' : 'animate-pulse'}`}>
-              {opponentLock ? '⏳' : '⏳'}
-            </p>
-            <p className="text-base font-semibold text-white/80 mt-2">
+            <div className="flex items-center justify-center h-16 mb-2">
+              <p className={`text-6xl leading-none ${opponentLock ? '' : 'animate-pulse'}`}>
+                {opponentLock ? '⏳' : '⏳'}
+              </p>
+            </div>
+            <p className="text-white/60">
               {opponentLock || (currentGame?.guest ? 'Waiting for lock' : 'Opponent pending')}
             </p>
             {/* Timer Display for Opponent - Game of Go Style */}
