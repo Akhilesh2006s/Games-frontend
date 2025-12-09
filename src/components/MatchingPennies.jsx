@@ -142,10 +142,10 @@ const MatchingPennies = () => {
       
       // Update rounds played from payload
       if (payload.roundsPlayed !== undefined) {
-        setRoundsPlayed(payload.roundsPlayed);
+        setRoundsPlayed(Math.min(payload.roundsPlayed, 30)); // Cap at 30
       } else {
-        // Increment if not provided
-        setRoundsPlayed(prev => prev + 1);
+        // Increment if not provided, but cap at 30
+        setRoundsPlayed(prev => Math.min(prev + 1, 30));
       }
       
       if (payload.isGameComplete) {
@@ -407,7 +407,7 @@ const MatchingPennies = () => {
           <div className="text-center">
             <p className="text-xl font-bold text-white">Total 30 Rounds</p>
             <p className="text-lg font-semibold text-white/40">VS</p>
-            <p className="text-xl font-bold text-white mt-1">Round {roundsPlayed}/30</p>
+            <p className="text-xl font-bold text-white mt-1">Round {Math.min(roundsPlayed, 30)}/30</p>
           </div>
           <div className="text-center">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/70">
@@ -480,7 +480,7 @@ const MatchingPennies = () => {
         <p className="mt-4 text-center text-sm text-white/50">{opponentStatus}</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 md:items-stretch">
+      <div className="grid gap-4 md:grid-cols-2">
         {choices.map((choice) => {
           const isDisabled = !isJoined || lockedChoice !== '' || roundsPlayed >= 30;
           return (
@@ -488,7 +488,7 @@ const MatchingPennies = () => {
               key={choice.value}
               onClick={() => submitChoice(choice.value)}
               disabled={isDisabled}
-              className={`rounded-3xl border border-white/10 bg-white/5 px-6 py-8 text-center transition hover:-translate-y-1 w-full flex flex-col items-center justify-center h-full ${
+              className={`rounded-3xl border border-white/10 bg-white/5 px-6 py-8 text-center transition hover:-translate-y-1 w-full flex flex-col items-center justify-center min-h-[200px] ${
                 lockedChoice === choice.value ? 'ring-2 ring-aurora' : ''
               } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
