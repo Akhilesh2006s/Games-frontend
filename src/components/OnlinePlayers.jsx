@@ -217,24 +217,24 @@ const OnlinePlayers = () => {
                     className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
                   >
                     <div className="flex-1">
-                      <p className="font-semibold">
+                      <p className="font-semibold text-lg">
                         {player.studentName || player.username || player.email}
                       </p>
                       {player.enrollmentNo && (
-                        <p className="text-sm text-white/60">Enrollment: {player.enrollmentNo}</p>
+                        <p className="text-sm text-white/60 mt-1">Enrollment: {player.enrollmentNo}</p>
                       )}
-                      <p className="text-xs text-white/40 mt-1">Game Code: {player.gameCode}</p>
+                      <p className="text-xs text-white/40 mt-1 font-mono">Game Code: {player.gameCode}</p>
                       {player.gameType && player.gameType !== 'Not Selected' && (
-                        <>
-                          <p className="text-sm text-aurora mt-2 font-semibold">
+                        <div className="mt-3 space-y-1">
+                          <p className="text-sm text-aurora font-semibold">
                             {player.gameType === 'GAME_OF_GO' ? 'Game of Go' : 
                              player.gameType === 'ROCK_PAPER_SCISSORS' ? 'Rock Paper Scissors' :
                              player.gameType === 'MATCHING_PENNIES' ? 'Matching Pennies' : player.gameType}
                           </p>
                           {player.gameDetails && (
-                            <p className="text-xs text-white/50 mt-1">{player.gameDetails}</p>
+                            <p className="text-xs text-white/60 mt-1">{player.gameDetails}</p>
                           )}
-                        </>
+                        </div>
                       )}
                     </div>
                     <button
