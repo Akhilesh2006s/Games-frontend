@@ -311,6 +311,7 @@ const MatchingPennies = () => {
         setLockedChoice('');
         setOpponentLock('');
         setRoundNumber(0);
+        setTimeRemaining(null); // Clear timer state on rematch
         setStatusMessage('Rematch started! Both players connected.');
         // Join new game room
         if (socket && payload.newCode) {
