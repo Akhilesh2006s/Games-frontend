@@ -812,10 +812,9 @@ const ArenaPage = () => {
                     <div className="mb-4 flex items-center justify-between">
                       <button
                         onClick={() => {
-                          // Just clear activeStage to go back to lobby, don't reset entire game
-                          if (currentGame) {
-                            setCurrentGame({ ...currentGame, activeStage: null });
-                          }
+                          // Reset game and go back to arena selection
+                          resetGame();
+                          setSelectedGameType(null);
                         }}
                         className="rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition"
                       >

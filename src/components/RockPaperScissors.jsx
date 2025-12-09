@@ -54,10 +54,19 @@ const RockPaperScissors = () => {
     try {
       const { data } = await api.get(`/games/code/${currentGame.code}`);
       setCurrentGame(data.game);
+      // If game is complete, ensure result persists
+      if (data.game.status === 'COMPLETE' && !result) {
+        setResult({
+          isGameComplete: true,
+          winner: data.game.hostScore >= 10 ? 'host' : data.game.guestScore >= 10 ? 'guest' : null,
+          hostScore: data.game.hostScore || 0,
+          guestScore: data.game.guestScore || 0,
+        });
+      }
     } catch (err) {
       console.error('Failed to refresh arena state', err);
     }
-  }, [currentGame?.code, setCurrentGame]);
+  }, [currentGame?.code, setCurrentGame, result]);
 
   const yourHandDisplay = useMemo(() => {
     if (result) {
@@ -88,7 +97,10 @@ const RockPaperScissors = () => {
   }, [currentGame?.hostScore, currentGame?.guestScore]);
 
   useEffect(() => {
-    setResult(null);
+    // Don't clear result if game is complete - keep buttons visible
+    if (currentGame?.status !== 'COMPLETE' && !result?.isGameComplete) {
+      setResult(null);
+    }
     setLockedMove('');
     setOpponentLock('');
     setWaitSeconds(0);
@@ -104,7 +116,7 @@ const RockPaperScissors = () => {
       return;
     }
     setOpponentStatus('Waiting for a challenger to enter your code.');
-  }, [currentGame, isHost]);
+  }, [currentGame, isHost, result?.isGameComplete]);
 
   useEffect(() => {
     if (!currentGame || currentGame.guest) {
@@ -167,6 +179,9 @@ const RockPaperScissors = () => {
           : (currentGame?.guest?.studentName || currentGame?.guest?.username);
         setStatusMessage(`${winnerName} wins the match! First to 10 points.`);
         // Don't clear result when game is complete - keep it visible for both players
+        // Don't refresh game details immediately to prevent clearing the result
+        // refreshGameDetails will be called by other handlers if needed
+        return; // Exit early to prevent refreshGameDetails() call
       } else {
         setStatusMessage(
           payload.result === 'draw'
@@ -487,7 +502,7 @@ const RockPaperScissors = () => {
         <p className="text-white/50">{opponentLock || 'Opponent pending'}</p>
       </div>
 
-      {(result || currentGame?.status === 'COMPLETE') && (
+      {((result && (result.isGameComplete || currentGame?.status === 'COMPLETE')) || currentGame?.status === 'COMPLETE') && (
         <div className={`rounded-3xl border p-6 text-center ${
           (result?.isGameComplete || currentGame?.status === 'COMPLETE')
             ? 'border-aurora/60 bg-aurora/20' 
@@ -579,19 +594,19 @@ const RockPaperScissors = () => {
         </div>
       )}
 
-      {/* Show buttons when game is complete, even if result is not set */}
-      {currentGame?.status === 'COMPLETE' && !result && (
+      {/* Show buttons when game is complete - ALWAYS show if status is COMPLETE or scores reach 10 */}
+      {((currentGame?.status === 'COMPLETE') || (currentGame?.hostScore >= 10 || currentGame?.guestScore >= 10) || (scores.host >= 10 || scores.guest >= 10)) && (
         <div className="rounded-3xl border border-aurora/60 bg-aurora/20 p-6 text-center">
           <p className="text-xs uppercase tracking-[0.4em] text-white/60">Match Complete</p>
           <p className="text-4xl font-display text-aurora mt-2">
-            {currentGame?.hostScore >= 10 
+            {((currentGame?.hostScore >= 10) || (scores.host >= 10))
               ? `${currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} Wins!` 
-              : currentGame?.guestScore >= 10
+              : ((currentGame?.guestScore >= 10) || (scores.guest >= 10))
                 ? `${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} Wins!`
                 : 'Match Complete!'}
           </p>
           <p className="text-white/70 mt-2">
-            Final Score: {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} {currentGame?.hostScore || 0} - {currentGame?.guestScore || 0} {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
+            Final Score: {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} {currentGame?.hostScore || scores.host || 0} - {currentGame?.guestScore || scores.guest || 0} {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
           </p>
           <div className="flex gap-4 mt-4 justify-center">
             <button
