@@ -378,7 +378,7 @@ const MatchingPennies = () => {
       <header>
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.4em] text-white/50">Stage 03</p>
+            <p className="text-xs uppercase tracking-[0.4em] text-white/50">Game 3</p>
             <h3 className="text-2xl font-semibold">Matching Pennies</h3>
           </div>
           <div className="flex items-center gap-2">
