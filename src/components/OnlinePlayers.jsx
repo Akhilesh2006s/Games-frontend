@@ -110,16 +110,23 @@ const OnlinePlayers = () => {
   const handleJoinGame = async (code) => {
     try {
       const { data } = await api.post('/games/join', { code: code.trim().toUpperCase() });
-      setCurrentGame(data.game);
+      
+      // Refresh game state to get latest data (including activeStage if auto-started)
+      const { data: refreshedGame } = await api.get(`/games/code/${data.game.code}`);
+      setCurrentGame(refreshedGame.game);
       
       // Set selected game type from pendingGameSettings or activeStage to trigger auto-start
-      if (data.game.pendingGameSettings?.gameType) {
-        setSelectedGameType(data.game.pendingGameSettings.gameType);
-      } else if (data.game.activeStage) {
-        setSelectedGameType(data.game.activeStage);
+      if (refreshedGame.game.pendingGameSettings?.gameType) {
+        setSelectedGameType(refreshedGame.game.pendingGameSettings.gameType);
+      } else if (refreshedGame.game.activeStage) {
+        setSelectedGameType(refreshedGame.game.activeStage);
       }
       
-      setStatusMessage('Both players connected! Game will start automatically.');
+      if (refreshedGame.game.activeStage) {
+        setStatusMessage(`Game started! ${refreshedGame.game.activeStage === 'ROCK_PAPER_SCISSORS' ? 'Rock Paper Scissors' : refreshedGame.game.activeStage === 'MATCHING_PENNIES' ? 'Matching Pennies' : 'Game of Go'} is ready.`);
+      } else {
+        setStatusMessage('Both players connected! Choose a game to play.');
+      }
       setSearchQuery('');
       setSearchResults({ players: [], games: [] });
     } catch (err) {
