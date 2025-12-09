@@ -384,12 +384,12 @@ const ArenaPage = () => {
                         </div>
                         <div className="mb-3">
                           <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white/80">
-                            Stage 01
+                            Game 1
                           </span>
                         </div>
                         <h3 className="mb-2 text-xl font-bold text-white">Rock • Paper • Scissors</h3>
                         <p className="mb-4 text-sm leading-relaxed text-white/70">
-                          Classic hand game. Choose rock, paper, or scissors. First to 10 points wins.
+                          Classic hand game. Choose rock, paper, or scissors. The first to reach 10 points wins.
                         </p>
                         <div className="flex flex-wrap items-center gap-3">
                           <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">✊ Rock</span>
@@ -407,7 +407,7 @@ const ArenaPage = () => {
                         </div>
                         <div className="mb-3">
                           <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white/80">
-                            Stage 02
+                            Game 2
                           </span>
                         </div>
                         <h3 className="mb-2 text-xl font-bold text-white">Game of Go</h3>
@@ -676,12 +676,12 @@ const ArenaPage = () => {
                         </div>
                         <div className="mb-3">
                           <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white/80">
-                            Stage 03
+                            Game 3
                           </span>
                         </div>
                         <h3 className="mb-2 text-xl font-bold text-white">Matching Pennies</h3>
                         <p className="mb-4 text-sm leading-relaxed text-white/70">
-                          Psychology game. One chooses, one guesses. If guess matches, guesser wins. First to 10 points wins.
+                          A psychology game where both players choose either Heads or Tails. The first to reach 10 points wins.
                         </p>
                         <div className="flex flex-wrap items-center gap-3">
                           <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">👑 Heads</span>

@@ -102,9 +102,9 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
   const games = [
     {
       id: 'ROCK_PAPER_SCISSORS',
-      stage: '01',
+      stage: '1',
       title: 'Rock • Paper • Scissors',
-      description: 'Classic hand game. Choose rock, paper, or scissors. First to 10 points wins.',
+      description: 'Classic hand game. Choose rock, paper, or scissors. The first to reach 10 points wins.',
       icon: '✊',
       gradient: 'from-pulse/20 via-royal/20 to-aurora/20',
       borderGradient: 'from-pulse via-royal to-aurora',
@@ -114,7 +114,7 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
     },
     {
       id: 'GAME_OF_GO',
-      stage: '02',
+      stage: '2',
       title: 'Game of Go',
       description: 'Strategic board game. Place stones to surround territory and capture opponent stones.',
       icon: '⚫',
@@ -127,9 +127,9 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
     },
     {
       id: 'MATCHING_PENNIES',
-      stage: '03',
+      stage: '3',
       title: 'Matching Pennies',
-      description: 'Psychology game. One chooses, one guesses. If guess matches, guesser wins. First to 10 points wins.',
+      description: 'A psychology game where both players choose either Heads or Tails. The first to reach 10 points wins.',
       icon: '🪙',
       gradient: 'from-aurora/20 via-pulse/20 to-royal/20',
       borderGradient: 'from-aurora via-pulse to-royal',
@@ -198,10 +198,10 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
                   {game.icon}
             </div>
 
-                {/* Stage Badge */}
+                {/* Game Badge */}
                 <div className="mb-3 flex items-center gap-2">
                   <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white/80">
-                    Stage {game.stage}
+                    Game {game.stage}
                   </span>
                   {isActive && (
                     <span className="flex items-center gap-1.5 rounded-full bg-aurora px-3 py-1 text-xs font-bold text-night">
