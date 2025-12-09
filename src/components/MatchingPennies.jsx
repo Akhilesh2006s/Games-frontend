@@ -488,7 +488,7 @@ const MatchingPennies = () => {
               key={choice.value}
               onClick={() => submitChoice(choice.value)}
               disabled={isDisabled}
-              className={`rounded-3xl border border-white/10 bg-white/5 px-6 py-8 text-center transition hover:-translate-y-1 w-full min-h-[200px] flex flex-col items-center justify-center ${
+              className={`rounded-3xl border border-white/10 bg-white/5 px-6 py-8 text-center transition hover:-translate-y-1 w-full flex flex-col items-center justify-center ${
                 lockedChoice === choice.value ? 'ring-2 ring-aurora' : ''
               } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
