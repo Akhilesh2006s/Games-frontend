@@ -27,6 +27,7 @@ const GameOfGo = () => {
   const [finalScore, setFinalScore] = useState(null);
   const [timeInfo, setTimeInfo] = useState({ black: null, white: null });
   const [rematchModal, setRematchModal] = useState({ isOpen: false, opponentName: '', requesterId: null, gameType: null, gameSettings: null });
+  const [startConfirmModal, setStartConfirmModal] = useState({ isOpen: false, gameSettings: null });
 
   const { socket, isConnected, isJoined } = useSocket({
     enabled: Boolean(currentGame),
@@ -120,6 +121,25 @@ const GameOfGo = () => {
       refreshGameDetails();
     }
   }, [currentGame?.activeStage, currentGame?.code, refreshGameDetails]);
+
+  // Show start confirmation modal to host when game is ready to start
+  useEffect(() => {
+    if (
+      isHost &&
+      currentGame?.status === 'READY' &&
+      currentGame?.activeStage === 'GAME_OF_GO' &&
+      currentGame?.guest &&
+      !startConfirmModal.isOpen &&
+      gamePhase === 'PLAY' &&
+      !board.some(row => row && row.some(cell => cell !== null)) // No moves made yet
+    ) {
+      const gameSettings = {
+        boardSize: currentGame.goBoardSize || 9,
+        timeControl: currentGame.goTimeControl || null,
+      };
+      setStartConfirmModal({ isOpen: true, gameSettings });
+    }
+  }, [isHost, currentGame?.status, currentGame?.activeStage, currentGame?.guest, currentGame?.goBoardSize, currentGame?.goTimeControl, startConfirmModal.isOpen, gamePhase, board]);
 
   // Update board when board size changes
   useEffect(() => {
@@ -437,6 +457,8 @@ const GameOfGo = () => {
       if (payload.game) {
         setCurrentGame(payload.game);
         refreshGameDetails();
+        // Close start confirmation modal if it's open
+        setStartConfirmModal({ isOpen: false, gameSettings: null });
       }
     });
     socket.on('game:error', handleError);
@@ -1025,6 +1047,79 @@ const GameOfGo = () => {
           setRematchModal({ isOpen: false, opponentName: '', requesterId: null, gameType: null, gameSettings: null });
         }}
       />
+
+      {/* Start Confirmation Modal */}
+      {startConfirmModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="glass-panel border-2 border-aurora/50 p-8 max-w-md w-full mx-4 text-white">
+            <h2 className="text-2xl font-bold mb-2 text-aurora">Start Game of Go</h2>
+            <p className="text-white/80 mb-4">
+              Both players are connected. Ready to start the game?
+            </p>
+            {startConfirmModal.gameSettings && (
+              <div className="bg-white/5 rounded-lg p-4 mb-6 space-y-2">
+                <p className="text-sm text-white/70">
+                  <span className="font-semibold">Board Size:</span> {startConfirmModal.gameSettings.boardSize}x{startConfirmModal.gameSettings.boardSize}
+                </p>
+                {startConfirmModal.gameSettings.timeControl && startConfirmModal.gameSettings.timeControl.mode !== 'none' ? (
+                  <div className="text-sm text-white/70">
+                    <span className="font-semibold">Time Control:</span>
+                    <ul className="ml-4 mt-1 space-y-1">
+                      <li>Mode: {startConfirmModal.gameSettings.timeControl.mode === 'fischer' ? 'Fischer' : 'Japanese'}</li>
+                      <li>Main Time: {Math.floor(startConfirmModal.gameSettings.timeControl.mainTime / 60)}:{(startConfirmModal.gameSettings.timeControl.mainTime % 60).toString().padStart(2, '0')}</li>
+                      {startConfirmModal.gameSettings.timeControl.mode === 'fischer' && startConfirmModal.gameSettings.timeControl.increment > 0 && (
+                        <li>Increment: +{startConfirmModal.gameSettings.timeControl.increment}s</li>
+                      )}
+                      {startConfirmModal.gameSettings.timeControl.mode === 'japanese' && startConfirmModal.gameSettings.timeControl.byoYomiTime > 0 && (
+                        <li>Byo-yomi: {startConfirmModal.gameSettings.timeControl.byoYomiTime}s ({startConfirmModal.gameSettings.timeControl.byoYomiPeriods} periods)</li>
+                      )}
+                    </ul>
+                  </div>
+                ) : (
+                  <p className="text-sm text-white/70">
+                    <span className="font-semibold">Time Control:</span> None
+                  </p>
+                )}
+              </div>
+            )}
+            <div className="flex gap-4">
+              <button
+                onClick={() => {
+                  setStartConfirmModal({ isOpen: false, gameSettings: null });
+                }}
+                className="flex-1 rounded-lg border border-white/20 bg-white/5 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!currentGame?.code) return;
+                  try {
+                    const requestBody = {
+                      code: currentGame.code,
+                      boardSize: startConfirmModal.gameSettings?.boardSize || 9,
+                    };
+                    
+                    if (startConfirmModal.gameSettings?.timeControl && startConfirmModal.gameSettings.timeControl.mode !== 'none') {
+                      requestBody.timeControl = startConfirmModal.gameSettings.timeControl;
+                    }
+                    
+                    await api.post('/games/start-go', requestBody);
+                    setStartConfirmModal({ isOpen: false, gameSettings: null });
+                    setStatusMessage('Game started! Black plays first.');
+                  } catch (err) {
+                    console.error('Failed to start game:', err);
+                    setStatusMessage(err.response?.data?.message || 'Failed to start game');
+                  }
+                }}
+                className="flex-1 rounded-lg bg-gradient-to-r from-aurora/20 to-royal/20 border border-aurora/50 px-6 py-3 text-sm font-semibold text-white hover:from-aurora/30 hover:to-royal/30 transition"
+              >
+                Start
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 };
