@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { io } from 'socket.io-client';
 import useAuthStore from '../store/useAuthStore';
-import { socketBaseUrl } from '../services/api';
+import { getSocket, releaseSocket } from '../services/socketManager';
 
 const useSocket = ({ enabled, roomCode }) => {
   const token = useAuthStore((state) => state.token);
@@ -13,38 +12,67 @@ const useSocket = ({ enabled, roomCode }) => {
     if (!enabled || !token) {
       setIsConnected(false);
       setIsJoined(false);
+      if (socketRef.current) {
+        releaseSocket();
+        socketRef.current = null;
+      }
       return undefined;
     }
     
-    const socket = io(socketBaseUrl, {
-      transports: ['websocket'],
-      auth: { token },
-    });
-
-    socket.on('connect', () => {
-      setIsConnected(true);
-    });
-
-    socket.on('disconnect', () => {
+    // Get shared socket instance
+    const socket = getSocket(token);
+    if (!socket) {
       setIsConnected(false);
       setIsJoined(false);
-    });
-
-    socket.on('game:joined', () => {
-      setIsJoined(true);
-    });
+      return undefined;
+    }
 
     socketRef.current = socket;
+
+    // Update connection state based on socket status
+    const updateConnectionState = () => {
+      setIsConnected(socket.connected);
+    };
+
+    // Set initial state
+    updateConnectionState();
+
+    // Listen for connection events
+    const handleConnect = () => {
+      console.log('Socket connected');
+      setIsConnected(true);
+    };
+
+    const handleDisconnect = (reason) => {
+      console.log('Socket disconnected:', reason);
+      setIsConnected(false);
+      setIsJoined(false);
+    };
+
+    const handleGameJoined = () => {
+      setIsJoined(true);
+    };
+
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+    socket.on('game:joined', handleGameJoined);
     
     return () => {
-      socket.disconnect();
+      // Remove listeners
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
+      socket.off('game:joined', handleGameJoined);
+      
+      // Release socket (only disconnects if no other components are using it)
+      releaseSocket();
+      socketRef.current = null;
       setIsConnected(false);
       setIsJoined(false);
     };
   }, [enabled, token]);
 
   useEffect(() => {
-    if (roomCode && socketRef.current && isConnected) {
+    if (roomCode && socketRef.current && isConnected && socketRef.current.connected) {
       setIsJoined(false);
       socketRef.current.emit('joinGame', { code: roomCode });
     }

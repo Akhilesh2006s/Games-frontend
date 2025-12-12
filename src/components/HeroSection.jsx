@@ -10,7 +10,7 @@ const features = [
     accent: 'from-aurora to-royal',
   },
   {
-    title: 'Matching Pennies Finale',
+    title: 'Matching Pennies',
     body: 'Psychology, deception, double-bluff glory. The tie-breaker to end all tie-breakers.',
     accent: 'from-royal to-pulse',
   },
@@ -29,17 +29,9 @@ const HeroSection = () => (
         Spin up a private arena code, share it with your rival, and move through our trilogy: Rock Paper Scissors, Game
         of Go, and Matching Pennies. Built for rapid authentication, neon ambience, and highlight-ready match data.
       </p>
-      <div className="flex flex-wrap justify-center gap-4 md:justify-start">
-        <a href="#auth" className="btn-primary">
-          Enter the Arena
-        </a>
-        <a href="#games" className="btn-ghost">
-          Preview the Stages
-        </a>
-      </div>
     </div>
 
-    <div id="games" className="grid gap-6 md:grid-cols-3">
+    <div id="games" className="flex flex-col gap-6">
       {features.map((feature) => (
         <article
           key={feature.title}

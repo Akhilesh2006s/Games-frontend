@@ -611,22 +611,74 @@ const RockPaperScissors = () => {
               </div>
             </>
           ) : (
-            <>
-              <p className="text-3xl font-display">
-                {result.result === 'draw' 
-                  ? 'Draw' 
-                  : result.result === 'host'
-                    ? `${currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} wins this round`
-                    : `${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} wins this round`}
-              </p>
-              <p className="text-white/70">
-                {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} played <span className="font-semibold">{result.hostMove}</span> • {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} played{' '}
-                <span className="font-semibold">{result.guestMove}</span>
-              </p>
-              <p className="text-sm text-white/40 mt-2">
-                Score: {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} {result.hostScore} - {result.guestScore} {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
-              </p>
-            </>
+            <div className="mt-4 rounded-2xl border-2 border-blue-500/50 bg-gradient-to-br from-blue-500/20 via-blue-400/15 to-blue-500/20 p-6 backdrop-blur-sm">
+              {/* Winner Badge */}
+              <div className="mb-4 text-center">
+                {result.result === 'draw' ? (
+                  <p className="text-2xl font-bold text-yellow-400">🤝 Draw!</p>
+                ) : result.result === 'host' ? (
+                  <p className="text-2xl font-bold text-green-400">
+                    🏆 {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} Wins!
+                  </p>
+                ) : (
+                  <p className="text-2xl font-bold text-green-400">
+                    🏆 {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} Wins!
+                  </p>
+                )}
+              </div>
+
+              {/* Player Selections */}
+              <div className="flex items-center justify-center gap-6">
+                {/* Host Player */}
+                <div className="flex flex-col items-center">
+                  <p className="text-sm font-semibold text-white/80 mb-2">
+                    {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'}
+                  </p>
+                  <div className={`rounded-xl border-2 p-4 ${
+                    result.result === 'host' 
+                      ? 'border-green-400 bg-green-400/20' 
+                      : result.result === 'draw'
+                      ? 'border-yellow-400/50 bg-yellow-400/10'
+                      : 'border-white/20 bg-white/5'
+                  }`}>
+                    <p className="text-6xl">{handMap[result.hostMove] || '⏳'}</p>
+                  </div>
+                  <p className="text-xs text-white/60 mt-2 capitalize">{result.hostMove}</p>
+                </div>
+
+                {/* VS Divider */}
+                <div className="flex flex-col items-center">
+                  <p className="text-3xl font-bold text-blue-300">VS</p>
+                </div>
+
+                {/* Guest Player */}
+                <div className="flex flex-col items-center">
+                  <p className="text-sm font-semibold text-white/80 mb-2">
+                    {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
+                  </p>
+                  <div className={`rounded-xl border-2 p-4 ${
+                    result.result === 'guest' 
+                      ? 'border-green-400 bg-green-400/20' 
+                      : result.result === 'draw'
+                      ? 'border-yellow-400/50 bg-yellow-400/10'
+                      : 'border-white/20 bg-white/5'
+                  }`}>
+                    <p className="text-6xl">{handMap[result.guestMove] || '⏳'}</p>
+                  </div>
+                  <p className="text-xs text-white/60 mt-2 capitalize">{result.guestMove}</p>
+                </div>
+              </div>
+
+              {/* Score Display */}
+              <div className="mt-4 pt-4 border-t border-white/10 text-center">
+                <p className="text-sm text-white/70">
+                  Score: <span className="font-semibold text-white">{currentGame?.host?.studentName || currentGame?.host?.username || 'Host'}</span>{' '}
+                  <span className="text-blue-300 font-bold">{result.hostScore}</span> -{' '}
+                  <span className="text-blue-300 font-bold">{result.guestScore}</span>{' '}
+                  <span className="font-semibold text-white">{currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}</span>
+                </p>
+              </div>
+            </div>
           )}
         </div>
       )}

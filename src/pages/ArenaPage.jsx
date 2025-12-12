@@ -35,6 +35,8 @@ const ArenaPage = () => {
   
   // Restore game state on page load/refresh
   useEffect(() => {
+    let timeoutId = null;
+    
     const restoreGameState = async () => {
       try {
         // Get persisted game code from storage (Zustand persist format)
@@ -55,46 +57,55 @@ const ArenaPage = () => {
                 setSelectedGameType(data.game.activeStage);
               }
               setStatusMessage('Game restored. Reconnecting...');
+              
+              // Clear the reconnecting message after 3 seconds
+              timeoutId = setTimeout(() => {
+                if (data.game.activeStage) {
+                  setStatusMessage('Game reconnected successfully!');
+                  // Clear success message after 2 more seconds
+                  setTimeout(() => setStatusMessage(''), 2000);
+                } else {
+                  setStatusMessage('');
+                }
+              }, 3000);
             } else {
               // Game not found, clear storage
               localStorage.removeItem('game-storage');
+              setStatusMessage('');
             }
           } catch (err) {
             console.error('Failed to restore game:', err);
             // Clear invalid game code from storage
             localStorage.removeItem('game-storage');
+            setStatusMessage('');
           }
+        } else if (!gameCode) {
+          // No game to restore, clear any stale status messages
+          setStatusMessage('');
         }
       } catch (err) {
         console.error('Error restoring game state:', err);
+        setStatusMessage('');
       }
     };
     
     restoreGameState();
-  }, []); // Only run on mount
-
-  // Prevent browser back button from going to login page
-  useEffect(() => {
-    // Replace current history entry to prevent going back to login
-    window.history.replaceState(null, '', window.location.href);
     
-    const handlePopState = (event) => {
-      const token = useAuthStore.getState().token;
-      // If user is still logged in, prevent going back to login page
-      if (token) {
-        // Push current state back to prevent navigation
-        window.history.pushState(null, '', window.location.href);
-        // Stay on current page
-        return;
+    // Cleanup timeout on unmount
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
       }
     };
-    
-    window.addEventListener('popstate', handlePopState);
-    
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, []);
+  }, []); // Only run on mount
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    const token = useAuthStore.getState().token;
+    if (!token) {
+      navigate('/', { replace: true });
+    }
+  }, [navigate]);
   
   // Set selected game type when game starts
   useEffect(() => {
@@ -103,9 +114,9 @@ const ArenaPage = () => {
     }
   }, [currentGame?.activeStage, selectedGameType, setSelectedGameType]);
 
-  // Redirect admin users to admin dashboard
+  // Redirect admin users to admin dashboard (only if user is loaded)
   useEffect(() => {
-    if (user?.role === 'admin') {
+    if (user && user.role === 'admin') {
       navigate('/admin', { replace: true });
     }
   }, [user, navigate]);
@@ -183,6 +194,20 @@ const ArenaPage = () => {
   const handleSelectGame = async (gameType) => {
     if (creatingGame) return;
     
+    // Check if games are unlocked
+    if (gameType === 'ROCK_PAPER_SCISSORS' && user?.rpsUnlocked !== true) {
+      setStatusMessage('Rock Paper Scissors is locked. Please contact an admin to unlock it.');
+      return;
+    }
+    if (gameType === 'MATCHING_PENNIES' && user?.penniesUnlocked !== true) {
+      setStatusMessage('Matching Pennies is locked. Please contact an admin to unlock it.');
+      return;
+    }
+    if (gameType === 'GAME_OF_GO' && user?.goUnlocked !== true) {
+      setStatusMessage('Game of Go is locked. Please contact an admin to unlock it.');
+      return;
+    }
+
     // For RPS and Matching Pennies, automatically create code and set pendingGameSettings
     if (gameType === 'ROCK_PAPER_SCISSORS' || gameType === 'MATCHING_PENNIES') {
       setCreatingGame(true);
@@ -418,6 +443,18 @@ const ArenaPage = () => {
                 </div>
               )}
 
+              {/* Step 1: Select Game - Show GameSelector when both players connected but no game selected */}
+              {currentGame?.code && currentGame?.guest && !selectedGameType && !currentGame?.activeStage && (
+                <div className="mb-6">
+                  <GameSelector 
+                    currentGame={currentGame}
+                    onGameSelected={handleSelectGame}
+                    selectedGameType={selectedGameType}
+                    onGameStarted={() => {}}
+                  />
+                </div>
+              )}
+
               {/* Step 1: Select Game - Show when no game code created yet (allow configuration) */}
               {!currentGame?.code && !currentGame?.activeStage && (
                 <div className="mb-6">
@@ -425,11 +462,13 @@ const ArenaPage = () => {
                     <h2 className="text-2xl font-semibold mb-4">Select a Game</h2>
                     <p className="text-white/60 mb-6">Choose a game to play, then create a code to invite your opponent.</p>
                     <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
-                      <button
-                        onClick={() => handleSelectGame('ROCK_PAPER_SCISSORS')}
-                        className="glass-panel p-6 text-white border-2 border-white/10 hover:border-aurora/50 transition text-left"
-                        disabled={creatingGame}
-                      >
+                      <div className={`glass-panel p-6 text-white border-2 transition text-left ${
+                        user?.rpsUnlocked !== true
+                          ? 'border-red-500/30 bg-gradient-to-br from-red-500/10 via-red-500/5 to-transparent opacity-60'
+                          : selectedGameType === 'ROCK_PAPER_SCISSORS'
+                          ? 'border-aurora/50 bg-aurora/10'
+                          : 'border-white/10 hover:border-aurora/50'
+                      }`}>
                         <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-pulse/30 to-royal/30 text-3xl">
                           ✊
                         </div>
@@ -437,19 +476,37 @@ const ArenaPage = () => {
                           <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white/80">
                             Game 1
                           </span>
+                          {user?.rpsUnlocked !== true && (
+                            <span className="ml-2 flex items-center gap-1.5 rounded-full bg-red-500/30 border border-red-500/50 px-3 py-1 text-xs font-bold text-red-400">
+                              🔒 LOCKED
+                            </span>
+                          )}
                         </div>
                         <h3 className="mb-2 text-xl font-bold text-white">Rock • Paper • Scissors</h3>
                         <p className="mb-4 text-sm leading-relaxed text-white/70">
-                          Classic hand game. Choose rock, paper, or scissors. Both players play the match for a total of 30 rounds.
+                          {user?.rpsUnlocked === true
+                            ? 'Classic hand game. Choose rock, paper, or scissors. Both players play the match for a total of 30 rounds.'
+                            : '🔒 Locked - Contact an admin to unlock this game.'}
                         </p>
                         <div className="flex flex-wrap items-center gap-3">
                           <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">✊ Rock</span>
                           <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">✋ Paper</span>
                           <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">✌️ Scissors</span>
                         </div>
-                      </button>
+                        {user?.rpsUnlocked === true && (
+                          <button
+                            onClick={() => handleSelectGame('ROCK_PAPER_SCISSORS')}
+                            disabled={creatingGame}
+                            className="mt-4 w-full rounded-lg bg-gradient-to-r from-aurora/20 to-royal/20 border border-aurora/50 px-4 py-2 text-sm font-bold text-white transition-all hover:from-aurora/30 hover:to-royal/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Select Game
+                          </button>
+                        )}
+                      </div>
                       <div className={`glass-panel p-6 text-white border-2 transition text-left ${
-                        selectedGameType === 'GAME_OF_GO' 
+                        user?.goUnlocked !== true
+                          ? 'border-red-500/30 bg-gradient-to-br from-red-500/10 via-red-500/5 to-transparent opacity-60'
+                          : selectedGameType === 'GAME_OF_GO' 
                           ? 'border-aurora/50 bg-aurora/10' 
                           : 'border-white/10 hover:border-aurora/50'
                       }`}>
@@ -462,15 +519,24 @@ const ArenaPage = () => {
                           </span>
                         </div>
                         <h3 className="mb-2 text-xl font-bold text-white">Game of Go</h3>
+                        {user?.goUnlocked !== true && (
+                          <div className="mb-3">
+                            <span className="flex items-center gap-1.5 rounded-full bg-red-500/30 border border-red-500/50 px-3 py-1 text-xs font-bold text-red-400">
+                              🔒 LOCKED
+                            </span>
+                          </div>
+                        )}
                         <p className="mb-4 text-sm leading-relaxed text-white/70">
-                          Strategic board game. Place stones to surround territory and capture opponent stones.
+                          {user?.goUnlocked === true 
+                            ? 'Strategic board game. Place stones to surround territory and capture opponent stones.'
+                            : '🔒 Locked - Contact an admin to unlock this game.'}
                         </p>
                         <div className="flex flex-wrap items-center gap-3 mb-4">
                           <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">⚫ Black</span>
                           <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">⚪ White</span>
                         </div>
 
-                        {selectedGameType === 'GAME_OF_GO' && (
+                        {selectedGameType === 'GAME_OF_GO' && user?.goUnlocked === true && (
                           <div className="mt-6 pt-6 border-t border-white/10 space-y-4">
                             {/* Board Size Selection */}
                             <div>
@@ -698,30 +764,51 @@ const ArenaPage = () => {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleEnterLobby();
+                                if (user?.goUnlocked === true) {
+                                  handleEnterLobby();
+                                } else {
+                                  setStatusMessage('Game of Go is locked. Please contact an admin to unlock it.');
+                                }
                               }}
-                              disabled={creatingGame}
-                              className="w-full mt-4 rounded-lg bg-gradient-to-r from-aurora/20 to-royal/20 border border-aurora/50 px-4 py-3 text-sm font-bold text-white transition-all hover:from-aurora/30 hover:to-royal/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                              disabled={creatingGame || user?.goUnlocked !== true}
+                              className={`w-full mt-4 rounded-lg border px-4 py-3 text-sm font-bold transition-all ${
+                                user?.goUnlocked === true
+                                  ? 'bg-gradient-to-r from-aurora/20 to-royal/20 border-aurora/50 text-white hover:from-aurora/30 hover:to-royal/30'
+                                  : 'bg-red-500/20 border-red-500/50 text-red-400 cursor-not-allowed'
+                              } disabled:opacity-50 disabled:cursor-not-allowed`}
                             >
-                              Enter Lobby
+                              {user?.goUnlocked === true ? 'Enter Lobby' : '🔒 Locked - Contact Admin'}
                             </button>
                           </div>
                         )}
 
                         {selectedGameType !== 'GAME_OF_GO' && (
                           <button
-                            onClick={() => setSelectedGameType('GAME_OF_GO')}
-                            className="w-full mt-4 rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition"
+                            onClick={() => {
+                              if (user?.goUnlocked === true) {
+                                setSelectedGameType('GAME_OF_GO');
+                              } else {
+                                setStatusMessage('Game of Go is locked. Please contact an admin to unlock it.');
+                              }
+                            }}
+                            disabled={user?.goUnlocked !== true}
+                            className={`w-full mt-4 rounded-lg border px-4 py-2 text-sm font-semibold transition ${
+                              user?.goUnlocked === true
+                                ? 'border-white/20 bg-white/5 text-white hover:bg-white/10'
+                                : 'border-red-500/50 bg-red-500/20 text-red-400 cursor-not-allowed opacity-60'
+                            } disabled:opacity-50 disabled:cursor-not-allowed`}
                           >
-                            Configure & Create
+                            {user?.goUnlocked === true ? 'Configure & Create' : '🔒 Locked'}
                           </button>
                         )}
                       </div>
-                      <button
-                        onClick={() => handleSelectGame('MATCHING_PENNIES')}
-                        className="glass-panel p-6 text-white border-2 border-white/10 hover:border-aurora/50 transition text-left"
-                        disabled={creatingGame}
-                      >
+                      <div className={`glass-panel p-6 text-white border-2 transition text-left ${
+                        user?.penniesUnlocked !== true
+                          ? 'border-red-500/30 bg-gradient-to-br from-red-500/10 via-red-500/5 to-transparent opacity-60'
+                          : selectedGameType === 'MATCHING_PENNIES'
+                          ? 'border-aurora/50 bg-aurora/10'
+                          : 'border-white/10 hover:border-aurora/50'
+                      }`}>
                         <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-aurora/30 to-pulse/30 text-3xl">
                           🪙
                         </div>
@@ -729,16 +816,32 @@ const ArenaPage = () => {
                           <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white/80">
                             Game 3
                           </span>
+                          {user?.penniesUnlocked !== true && (
+                            <span className="ml-2 flex items-center gap-1.5 rounded-full bg-red-500/30 border border-red-500/50 px-3 py-1 text-xs font-bold text-red-400">
+                              🔒 LOCKED
+                            </span>
+                          )}
                         </div>
                         <h3 className="mb-2 text-xl font-bold text-white">Matching Pennies</h3>
                         <p className="mb-4 text-sm leading-relaxed text-white/70">
-                          A psychology game where both players choose either Heads or Tails. Both players play the match for a total of 30 rounds.
+                          {user?.penniesUnlocked === true
+                            ? 'A psychology game where both players choose either Heads or Tails. Both players play the match for a total of 30 rounds.'
+                            : '🔒 Locked - Contact an admin to unlock this game.'}
                         </p>
                         <div className="flex flex-wrap items-center gap-3">
                           <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">👑 Heads</span>
                           <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">🦅 Tails</span>
                         </div>
-                      </button>
+                        {user?.penniesUnlocked === true && (
+                          <button
+                            onClick={() => handleSelectGame('MATCHING_PENNIES')}
+                            disabled={creatingGame}
+                            className="mt-4 w-full rounded-lg bg-gradient-to-r from-aurora/20 to-royal/20 border border-aurora/50 px-4 py-2 text-sm font-bold text-white transition-all hover:from-aurora/30 hover:to-royal/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Select Game
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -836,8 +939,8 @@ const ArenaPage = () => {
                 </div>
               )}
 
-              {/* Step 2: Game Lobby - Create Code (after game selection) */}
-              {(selectedGameType || currentGame?.code) && !currentGame?.activeStage && (
+              {/* Step 2: Game Lobby - Create Code (after game selection, but hide when both players connected and need to select game) */}
+              {(selectedGameType || currentGame?.code) && !currentGame?.activeStage && !(currentGame?.code && currentGame?.guest && !selectedGameType) && (
                 <div className="mb-6">
                   <GameLobby 
                     showArenaOnly={true} 
@@ -860,7 +963,17 @@ const ArenaPage = () => {
                 <div className="fixed inset-0 z-50 bg-night overflow-auto">
                   <div className="min-h-screen p-4 md:p-6">
                     {/* Full Screen Game Header */}
-                    <div className="mb-4 flex items-center justify-end">
+                    <div className="mb-4 flex items-center justify-between">
+                      <button
+                        onClick={() => {
+                          setCurrentGame(null);
+                          setSelectedGameType(null);
+                          setStatusMessage('');
+                        }}
+                        className="btn-ghost"
+                      >
+                        ← Back to Arena
+                      </button>
                       <div className="text-sm text-white/60">
                         Lobby: <span className="font-mono text-aurora">{currentGame.code}</span>
                       </div>

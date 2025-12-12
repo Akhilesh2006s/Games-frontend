@@ -31,7 +31,10 @@ const AuthPanel = ({ onSuccess }) => {
           : form;
       const { data } = await api.post(endpoint, payload);
       setAuth({ token: data.token, user: data.user });
-      onSuccess?.();
+      // Small delay to ensure auth state is updated before navigation
+      setTimeout(() => {
+        onSuccess?.();
+      }, 50);
     } catch (err) {
       setError(err.response?.data?.message || 'Something misfired. Try again.');
     } finally {

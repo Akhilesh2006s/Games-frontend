@@ -142,6 +142,71 @@ const AdminDashboard = () => {
     }
   };
 
+  const toggleGameUnlock = async (userId, gameType, currentStatus) => {
+    try {
+      setLoading(true);
+      await api.put(`/admin/user/${userId}/game-unlock`, { gameType, unlocked: !currentStatus });
+      // Refresh game access list
+      await fetchGameAccess();
+      setError('');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update unlock status');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Game Access state
+  const [gameAccessList, setGameAccessList] = useState([]);
+  const [gameAccessFilters, setGameAccessFilters] = useState({ groups: [], classrooms: [], teams: [] });
+  const [gameAccessSelectedGroup, setGameAccessSelectedGroup] = useState('all');
+  const [gameAccessSelectedClassroom, setGameAccessSelectedClassroom] = useState('all');
+  const [gameAccessSelectedTeam, setGameAccessSelectedTeam] = useState('all');
+  const [gameAccessSearchQuery, setGameAccessSearchQuery] = useState('');
+  const [selectedUsers, setSelectedUsers] = useState(new Set());
+
+  const fetchGameAccess = async () => {
+    try {
+      setLoading(true);
+      const params = {
+        groupId: gameAccessSelectedGroup !== 'all' ? gameAccessSelectedGroup : undefined,
+        classroomNumber: gameAccessSelectedClassroom !== 'all' ? gameAccessSelectedClassroom : undefined,
+        teamNumber: gameAccessSelectedTeam !== 'all' ? gameAccessSelectedTeam : undefined,
+        search: gameAccessSearchQuery || undefined,
+      };
+      const { data } = await api.get('/admin/leaderboard', { params });
+      let accessList = data.leaderboard || [];
+      
+      // Sort by wins, then points (same as leaderboard)
+      accessList.sort((a, b) => {
+        if (b.stats?.wins !== a.stats?.wins) return (b.stats?.wins || 0) - (a.stats?.wins || 0);
+        return (b.stats?.totalPoints || 0) - (a.stats?.totalPoints || 0);
+      });
+      
+      // Add rank to each item
+      accessList = accessList.map((item, index) => ({
+        ...item,
+        rank: index + 1,
+      }));
+      
+      setGameAccessList(accessList);
+      setGameAccessFilters(data.filters || { groups: [], classrooms: [], teams: [] });
+      setError('');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to load game access list');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'gameAccess') {
+      fetchGameAccess();
+      // Clear selections when filters change
+      setSelectedUsers(new Set());
+    }
+  }, [activeTab, gameAccessSelectedGroup, gameAccessSelectedClassroom, gameAccessSelectedTeam, gameAccessSearchQuery]);
+
   const formatDate = (date) => {
     if (!date) return 'N/A';
     return new Date(date).toLocaleString();
@@ -582,7 +647,7 @@ const AdminDashboard = () => {
 
       {/* Tabs */}
       <div className="mb-6 flex gap-2 rounded-full bg-white/5 p-1">
-        {['leaderboard', 'games', 'student'].map((tab) => (
+        {['leaderboard', 'gameAccess', 'games', 'student'].map((tab) => (
           <button
             key={tab}
             onClick={() => {
@@ -596,7 +661,7 @@ const AdminDashboard = () => {
                 : 'text-white/70 hover:text-white hover:bg-white/10'
             }`}
           >
-            {tab === 'leaderboard' ? 'Leaderboard' : tab === 'games' ? 'Game History' : 'Student Stats'}
+            {tab === 'leaderboard' ? 'Leaderboard' : tab === 'gameAccess' ? 'Game Access' : tab === 'games' ? 'Game History' : 'Student Stats'}
           </button>
         ))}
       </div>
@@ -604,6 +669,285 @@ const AdminDashboard = () => {
       {error && (
         <div className="mb-6 rounded-2xl border border-red-500/50 bg-red-500/10 px-4 py-3 text-center text-red-400">
           {error}
+        </div>
+      )}
+
+      {/* Game Access Tab */}
+      {activeTab === 'gameAccess' && (
+        <div>
+          <div className="glass-panel mb-6 p-6">
+            <div className="mb-4 flex items-center justify-between flex-wrap gap-4">
+              <h2 className="text-xl font-semibold text-white">Filters & Search</h2>
+              <div className="flex gap-3 flex-wrap">
+                {selectedUsers.size > 0 && (
+                  <>
+                    <button
+                      onClick={async () => {
+                        if (window.confirm(`Are you sure you want to unlock Game of Go for ${selectedUsers.size} selected user(s)?`)) {
+                          try {
+                            setLoading(true);
+                            await api.post('/admin/bulk-game-unlock', {
+                              userIds: Array.from(selectedUsers),
+                              gameType: 'go',
+                              unlock: true,
+                            });
+                            setSelectedUsers(new Set());
+                            await fetchGameAccess();
+                            setError('');
+                          } catch (err) {
+                            setError(err.response?.data?.message || 'Failed to unlock games');
+                          } finally {
+                            setLoading(false);
+                          }
+                        }
+                      }}
+                      disabled={loading}
+                      className="px-4 py-2 rounded-lg bg-green-500/20 text-green-400 border border-green-500/50 hover:bg-green-500/30 transition font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      🔓 Unlock Go ({selectedUsers.size})
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (window.confirm(`Are you sure you want to lock Game of Go for ${selectedUsers.size} selected user(s)?`)) {
+                          try {
+                            setLoading(true);
+                            await api.post('/admin/bulk-game-unlock', {
+                              userIds: Array.from(selectedUsers),
+                              gameType: 'go',
+                              unlock: false,
+                            });
+                            setSelectedUsers(new Set());
+                            await fetchGameAccess();
+                            setError('');
+                          } catch (err) {
+                            setError(err.response?.data?.message || 'Failed to lock games');
+                          } finally {
+                            setLoading(false);
+                          }
+                        }
+                      }}
+                      disabled={loading}
+                      className="px-4 py-2 rounded-lg bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30 transition font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      🔒 Lock Go ({selectedUsers.size})
+                    </button>
+                  </>
+                )}
+                {(gameAccessSelectedGroup !== 'all' || gameAccessSelectedClassroom !== 'all' || gameAccessSelectedTeam !== 'all' || gameAccessSearchQuery) && (
+                  <>
+                    <button
+                      onClick={async () => {
+                        if (window.confirm('Are you sure you want to unlock RPS and Matching Pennies for all users matching the current filters?')) {
+                          try {
+                            setLoading(true);
+                            await api.post('/admin/unlock-all-rps-pennies', {
+                              groupId: gameAccessSelectedGroup !== 'all' ? gameAccessSelectedGroup : undefined,
+                              classroomNumber: gameAccessSelectedClassroom !== 'all' ? gameAccessSelectedClassroom : undefined,
+                              teamNumber: gameAccessSelectedTeam !== 'all' ? gameAccessSelectedTeam : undefined,
+                              search: gameAccessSearchQuery || undefined,
+                              unlock: true,
+                            });
+                            await fetchGameAccess();
+                            setError('');
+                          } catch (err) {
+                            setError(err.response?.data?.message || 'Failed to unlock games');
+                          } finally {
+                            setLoading(false);
+                          }
+                        }
+                      }}
+                      disabled={loading}
+                      className="px-4 py-2 rounded-lg bg-green-500/20 text-green-400 border border-green-500/50 hover:bg-green-500/30 transition font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      🔓 Unlock All RPS & Pennies
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (window.confirm('Are you sure you want to lock RPS and Matching Pennies for all users matching the current filters?')) {
+                          try {
+                            setLoading(true);
+                            await api.post('/admin/unlock-all-rps-pennies', {
+                              groupId: gameAccessSelectedGroup !== 'all' ? gameAccessSelectedGroup : undefined,
+                              classroomNumber: gameAccessSelectedClassroom !== 'all' ? gameAccessSelectedClassroom : undefined,
+                              teamNumber: gameAccessSelectedTeam !== 'all' ? gameAccessSelectedTeam : undefined,
+                              search: gameAccessSearchQuery || undefined,
+                              unlock: false,
+                            });
+                            await fetchGameAccess();
+                            setError('');
+                          } catch (err) {
+                            setError(err.response?.data?.message || 'Failed to lock games');
+                          } finally {
+                            setLoading(false);
+                          }
+                        }
+                      }}
+                      disabled={loading}
+                      className="px-4 py-2 rounded-lg bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30 transition font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      🔒 Lock All RPS & Pennies
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <div>
+                <label className="block text-sm font-medium text-white/70 mb-2">Filter by Group</label>
+                <select
+                  value={gameAccessSelectedGroup}
+                  onChange={(e) => setGameAccessSelectedGroup(e.target.value)}
+                  className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-white focus:border-aurora focus:outline-none [&>option]:bg-[#1a1a2e] [&>option]:text-white"
+                >
+                  <option value="all">All Groups</option>
+                  {gameAccessFilters.groups.map((group) => (
+                    <option key={group} value={group}>{group}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-white/70 mb-2">Filter by Classroom</label>
+                <select
+                  value={gameAccessSelectedClassroom}
+                  onChange={(e) => setGameAccessSelectedClassroom(e.target.value)}
+                  className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-white focus:border-aurora focus:outline-none [&>option]:bg-[#1a1a2e] [&>option]:text-white"
+                >
+                  <option value="all">All Classrooms</option>
+                  {gameAccessFilters.classrooms.map((classroom) => (
+                    <option key={classroom} value={classroom}>{classroom}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-white/70 mb-2">Filter by Team</label>
+                <select
+                  value={gameAccessSelectedTeam}
+                  onChange={(e) => setGameAccessSelectedTeam(e.target.value)}
+                  className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-white focus:border-aurora focus:outline-none [&>option]:bg-[#1a1a2e] [&>option]:text-white"
+                >
+                  <option value="all">All Teams</option>
+                  {gameAccessFilters.teams.map((team) => (
+                    <option key={team} value={team}>{team}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-white/70 mb-2">Search</label>
+                <input
+                  type="text"
+                  value={gameAccessSearchQuery}
+                  onChange={(e) => setGameAccessSearchQuery(e.target.value)}
+                  placeholder="Search students..."
+                  className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-white placeholder:text-white/40 focus:border-aurora focus:outline-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="glass-panel overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-white/10">
+                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wide text-white/50">
+                    <input
+                      type="checkbox"
+                      checked={gameAccessList.length > 0 && gameAccessList.every(item => selectedUsers.has(item._id))}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          const allIds = new Set(gameAccessList.map(item => item._id).filter(Boolean));
+                          setSelectedUsers(allIds);
+                        } else {
+                          setSelectedUsers(new Set());
+                        }
+                      }}
+                      className="rounded border-white/20 cursor-pointer"
+                    />
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wide text-white/50">Rank</th>
+                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wide text-white/50">Name</th>
+                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wide text-white/50">Email</th>
+                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wide text-white/50">Group</th>
+                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wide text-white/50">Classroom</th>
+                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wide text-white/50">Team</th>
+                  <th className="px-4 py-3 text-center text-xs uppercase tracking-wide text-white/50">Game of Go</th>
+                  <th className="px-4 py-3 text-center text-xs uppercase tracking-wide text-white/50">RPS & Pennies</th>
+                </tr>
+              </thead>
+              <tbody>
+                {gameAccessList.map((item) => (
+                  <tr key={item.email || item._id} className="border-b border-white/5 hover:bg-white/5">
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={item._id && selectedUsers.has(item._id)}
+                        onChange={(e) => {
+                          if (item._id) {
+                            const newSelected = new Set(selectedUsers);
+                            if (e.target.checked) {
+                              newSelected.add(item._id);
+                            } else {
+                              newSelected.delete(item._id);
+                            }
+                            setSelectedUsers(newSelected);
+                          }
+                        }}
+                        className="rounded border-white/20 cursor-pointer"
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-white font-semibold">{item.rank || '-'}</td>
+                    <td className="px-4 py-3 text-white">{item.displayName || item.firstName || item.username}</td>
+                    <td className="px-4 py-3 text-white/70">{item.email || '-'}</td>
+                    <td className="px-4 py-3 text-white/70">{item.groupId || '-'}</td>
+                    <td className="px-4 py-3 text-white/70">{item.classroomNumber || '-'}</td>
+                    <td className="px-4 py-3 text-white/70">{item.teamNumber || '-'}</td>
+                    <td className="px-4 py-3 text-center">
+                      {item._id && (
+                        <button
+                          onClick={() => toggleGameUnlock(item._id, 'go', item.goUnlocked)}
+                          disabled={loading}
+                          className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
+                            item.goUnlocked
+                              ? 'bg-green-500/20 text-green-400 border border-green-500/50 hover:bg-green-500/30'
+                              : 'bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30'
+                          } disabled:opacity-50 disabled:cursor-not-allowed`}
+                        >
+                          {item.goUnlocked ? '🔓 Unlocked' : '🔒 Locked'}
+                        </button>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {item._id && (
+                        <div className="flex flex-col gap-2 items-center">
+                          <button
+                            onClick={() => toggleGameUnlock(item._id, 'rps', item.rpsUnlocked)}
+                            disabled={loading}
+                            className={`px-3 py-1 rounded-lg text-xs font-semibold transition w-full ${
+                              item.rpsUnlocked
+                                ? 'bg-green-500/20 text-green-400 border border-green-500/50 hover:bg-green-500/30'
+                                : 'bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30'
+                            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                          >
+                            RPS: {item.rpsUnlocked ? '🔓' : '🔒'}
+                          </button>
+                          <button
+                            onClick={() => toggleGameUnlock(item._id, 'pennies', item.penniesUnlocked)}
+                            disabled={loading}
+                            className={`px-3 py-1 rounded-lg text-xs font-semibold transition w-full ${
+                              item.penniesUnlocked
+                                ? 'bg-green-500/20 text-green-400 border border-green-500/50 hover:bg-green-500/30'
+                                : 'bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30'
+                            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                          >
+                            Pennies: {item.penniesUnlocked ? '🔓' : '🔒'}
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

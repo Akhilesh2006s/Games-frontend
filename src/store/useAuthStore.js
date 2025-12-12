@@ -20,6 +20,13 @@ const persist = (nextState) => {
 
 const initial = readPersisted();
 
+// Ensure unlock fields are always booleans (migration for cached users)
+if (initial?.user) {
+  if (initial.user.goUnlocked === undefined) initial.user.goUnlocked = false;
+  if (initial.user.rpsUnlocked === undefined) initial.user.rpsUnlocked = false;
+  if (initial.user.penniesUnlocked === undefined) initial.user.penniesUnlocked = false;
+}
+
 const useAuthStore = create((set) => ({
   token: initial?.token || '',
   user: initial?.user || null,

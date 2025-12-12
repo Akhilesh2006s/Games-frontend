@@ -41,6 +41,18 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
 
   const handleStartGame = async (gameType, boardSizeOverride = null) => {
     if (!currentGame?.code) return;
+    if (gameType === 'GAME_OF_GO' && !isGoUnlocked) {
+      setStatusMessage('Game of Go is locked. Please contact an admin to unlock it.');
+      return;
+    }
+    if (gameType === 'ROCK_PAPER_SCISSORS' && !isRpsUnlocked) {
+      setStatusMessage('Rock Paper Scissors is locked. Please contact an admin to unlock it.');
+      return;
+    }
+    if (gameType === 'MATCHING_PENNIES' && !isPenniesUnlocked) {
+      setStatusMessage('Matching Pennies is locked. Please contact an admin to unlock it.');
+      return;
+    }
     if (isGameInProgress && currentGame?.activeStage !== gameType) {
       setStatusMessage('Cannot switch games while a game is in progress. End the current game first.');
       return;
@@ -99,43 +111,57 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
     }
   };
 
+  // Ensure unlock status defaults to false if not present (for users with cached data)
+  const isGoUnlocked = user?.goUnlocked === true;
+  const isRpsUnlocked = user?.rpsUnlocked === true;
+  const isPenniesUnlocked = user?.penniesUnlocked === true;
+
   const games = [
     {
       id: 'ROCK_PAPER_SCISSORS',
       stage: '1',
       title: 'Rock • Paper • Scissors',
-      description: 'Classic hand game. Choose rock, paper, or scissors. Both players play the match for a total of 30 rounds.',
+      description: isRpsUnlocked 
+        ? 'Classic hand game. Choose rock, paper, or scissors. Both players play the match for a total of 30 rounds.'
+        : '🔒 Locked - Contact an admin to unlock this game.',
       icon: '✊',
       gradient: 'from-pulse/20 via-royal/20 to-aurora/20',
       borderGradient: 'from-pulse via-royal to-aurora',
       iconBg: 'bg-gradient-to-br from-pulse/30 to-royal/30',
       features: ['✊ Rock', '✋ Paper', '✌️ Scissors'],
-      loadingKey: 'rps'
+      loadingKey: 'rps',
+      locked: !isRpsUnlocked
     },
     {
       id: 'GAME_OF_GO',
       stage: '2',
       title: 'Game of Go',
-      description: 'Strategic board game. Place stones to surround territory and capture opponent stones.',
+      description: isGoUnlocked 
+        ? 'Strategic board game. Place stones to surround territory and capture opponent stones.'
+        : '🔒 Locked - Contact an admin to unlock this game.',
       icon: '⚫',
       gradient: 'from-royal/20 via-aurora/20 to-pulse/20',
       borderGradient: 'from-royal via-aurora to-pulse',
       iconBg: 'bg-gradient-to-br from-royal/30 to-aurora/30',
       features: ['⚫ Black', '⚪ White'],
       loadingKey: 'go',
-      hasOptions: true
+      hasOptions: true,
+      locked: !isGoUnlocked
     },
     {
       id: 'MATCHING_PENNIES',
       stage: '3',
       title: 'Matching Pennies',
-      description: 'A psychology game where both players choose either Heads or Tails. Both players play the match for a total of 30 rounds.',
+      description: isPenniesUnlocked
+        ? 'A psychology game where both players choose either Heads or Tails. Both players play the match for a total of 30 rounds.'
+        : '🔒 Locked - Contact an admin to unlock this game.',
       icon: '🪙',
       gradient: 'from-aurora/20 via-pulse/20 to-royal/20',
       borderGradient: 'from-aurora via-pulse to-royal',
       iconBg: 'bg-gradient-to-br from-aurora/30 to-pulse/30',
       features: ['👑 Heads', '🦅 Tails'],
-      loadingKey: 'pennies'
+      loadingKey: 'pennies',
+      locked: !isPenniesUnlocked
     }
   ];
 
@@ -173,6 +199,8 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
           const isActive = currentGame?.activeStage === game.id;
           const isLoading = loading[game.loadingKey];
           const isHovered = hoveredGame === game.id;
+          const isLocked = game.locked || false;
+          const isDisabledForLock = isLocked || (isDisabled || (isGameInProgress && !isActive));
 
           return (
             <div
@@ -185,8 +213,10 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
                 className={`relative h-full w-full overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-300 ${
                   isActive
                     ? 'border-aurora bg-gradient-to-br from-aurora/20 via-aurora/10 to-transparent shadow-[0_0_30px_rgba(83,255,227,0.3)]'
+                    : isLocked
+                    ? 'border-red-500/30 bg-gradient-to-br from-red-500/10 via-red-500/5 to-transparent opacity-60'
                     : `border-white/10 bg-gradient-to-br ${game.gradient} hover:border-aurora/50 hover:shadow-[0_0_25px_rgba(83,255,227,0.2)]`
-                } ${(isDisabled || (isGameInProgress && !isActive)) && !isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                } ${isDisabledForLock && !isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 {/* Active indicator glow */}
                 {isActive && (
@@ -203,7 +233,12 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
                   <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white/80">
                     Game {game.stage}
                   </span>
-                  {isActive && (
+                  {isLocked && (
+                    <span className="flex items-center gap-1.5 rounded-full bg-red-500/30 border border-red-500/50 px-3 py-1 text-xs font-bold text-red-400">
+                      🔒 LOCKED
+                    </span>
+                  )}
+                  {isActive && !isLocked && (
                     <span className="flex items-center gap-1.5 rounded-full bg-aurora px-3 py-1 text-xs font-bold text-night">
                       <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-night" />
                       ACTIVE
@@ -218,7 +253,7 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
                 <p className="mb-4 text-sm leading-relaxed text-white/70">{game.description}</p>
 
                 {/* Game-specific options - Board Size Selector */}
-                {game.hasOptions && currentGame?.activeStage !== 'GAME_OF_GO' && (
+                {game.hasOptions && currentGame?.activeStage !== 'GAME_OF_GO' && !isLocked && (
                   <div className="mb-4">
                     <label className={`mb-3 block text-xs font-semibold uppercase tracking-wider ${isGameInProgress ? 'text-white/30' : 'text-white/50'}`}>
                       Board Size
@@ -521,16 +556,16 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        if (!isDisabled && !isGameInProgress) {
+                        if (!isDisabledForLock) {
                           const currentSize = goBoardSizeRef.current;
                           console.log('Start button clicked - Current goBoardSize state:', goBoardSize, 'Ref:', currentSize);
                           handleStartGame(game.id, currentSize);
                         }
                       }}
-                      disabled={isDisabled || isGameInProgress}
+                      disabled={isDisabledForLock}
                       className="mt-4 w-full rounded-lg bg-gradient-to-r from-aurora/20 to-royal/20 border border-aurora/50 px-4 py-2.5 text-sm font-bold text-white transition-all hover:from-aurora/30 hover:to-royal/30 hover:shadow-[0_0_15px_rgba(83,255,227,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Start Game ({goBoardSize}×{goBoardSize})
+                      {isLocked ? '🔒 Locked - Contact Admin' : `Start Game (${goBoardSize}×${goBoardSize})`}
                     </button>
                   </div>
                 )}
@@ -562,14 +597,14 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      if (!isDisabled && !isGameInProgress) {
+                      if (!isDisabledForLock) {
                         handleStartGame(game.id);
                       }
                     }}
-                    disabled={isDisabled || isGameInProgress}
+                    disabled={isDisabledForLock}
                     className="mt-4 w-full rounded-lg bg-gradient-to-r from-aurora/20 to-royal/20 border border-aurora/50 px-4 py-2.5 text-sm font-bold text-white transition-all hover:from-aurora/30 hover:to-royal/30 hover:shadow-[0_0_15px_rgba(83,255,227,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Start Game
+                    {isLocked ? '🔒 Locked - Contact Admin' : 'Start Game'}
                   </button>
                 )}
 

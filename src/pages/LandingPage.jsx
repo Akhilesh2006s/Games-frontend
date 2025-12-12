@@ -1,6 +1,8 @@
 import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import HeroSection from '../components/HeroSection';
 import AuthPanel from '../components/AuthPanel';
+import useAuthStore from '../store/useAuthStore';
 
 const timeline = [
   {
@@ -22,9 +24,34 @@ const timeline = [
 
 const LandingPage = () => {
   const navigate = useNavigate();
+  const token = useAuthStore((state) => state.token);
+  const user = useAuthStore((state) => state.user);
+
+  // Redirect if already logged in (wait for user data to load)
+  useEffect(() => {
+    if (token && user) {
+      // Small delay to ensure user data is fully loaded
+      const timer = setTimeout(() => {
+        if (user?.role === 'admin') {
+          navigate('/admin', { replace: true });
+        } else {
+          navigate('/arena', { replace: true });
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [token, user, navigate]);
+
   const handleSuccess = () => {
-    // Replace history entry so user can't go back to login page
-    navigate('/arena', { replace: true });
+    // Small delay to ensure user data is set in store
+    setTimeout(() => {
+      const currentUser = useAuthStore.getState().user;
+      if (currentUser?.role === 'admin') {
+        navigate('/admin', { replace: true });
+      } else {
+        navigate('/arena', { replace: true });
+      }
+    }, 100);
   };
 
   return (
