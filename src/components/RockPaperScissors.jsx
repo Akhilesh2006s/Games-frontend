@@ -5,6 +5,7 @@ import useAuthStore from '../store/useAuthStore';
 import api from '../services/api';
 import useSocket from '../hooks/useSocket';
 import RematchModal from './RematchModal';
+import PlayerDisconnectedModal from './PlayerDisconnectedModal';
 
 const moves = [
   { label: 'Rock', value: 'rock', hand: '✊', hint: 'Crushes scissors' },
@@ -40,6 +41,7 @@ const RockPaperScissors = () => {
   const [timeRemaining, setTimeRemaining] = useState(null);
   const timeRemainingRef = useRef(null);
   const [rematchModal, setRematchModal] = useState({ isOpen: false, opponentName: '', requesterId: null, gameType: null, gameSettings: null });
+  const [disconnectModal, setDisconnectModal] = useState({ isOpen: false, playerName: '' });
 
   const { socket, isConnected, isJoined } = useSocket({
     enabled: Boolean(currentGame),
@@ -374,7 +376,10 @@ const RockPaperScissors = () => {
       if (payload.game) {
         setCurrentGame(payload.game);
       }
+      const disconnectedPlayerName = payload.disconnectedPlayerName || 'Opponent';
       setStatusMessage(payload.message || 'Opponent has left the game. You win by forfeit.');
+      // Show disconnect modal
+      setDisconnectModal({ isOpen: true, playerName: disconnectedPlayerName });
       // Set result to show game complete
       setResult({
         isGameComplete: true,
@@ -724,6 +729,13 @@ const RockPaperScissors = () => {
         }}
         onClose={() => {
           setRematchModal({ isOpen: false, opponentName: '', requesterId: null, gameType: null, gameSettings: null });
+        }}
+      />
+      <PlayerDisconnectedModal
+        isOpen={disconnectModal.isOpen}
+        playerName={disconnectModal.playerName}
+        onClose={() => {
+          setDisconnectModal({ isOpen: false, playerName: '' });
         }}
       />
     </section>

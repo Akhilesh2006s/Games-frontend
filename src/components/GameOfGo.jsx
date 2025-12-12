@@ -4,6 +4,7 @@ import useGameStore from '../store/useGameStore';
 import useAuthStore from '../store/useAuthStore';
 import api from '../services/api';
 import useSocket from '../hooks/useSocket';
+import PlayerDisconnectedModal from './PlayerDisconnectedModal';
 
 const GameOfGo = () => {
   const { selectedGameType, setSelectedGameType, currentGame, statusMessage, setStatusMessage, setCurrentGame, resetGame } = useGameStore();
@@ -444,7 +445,10 @@ const GameOfGo = () => {
       if (payload.game) {
         setCurrentGame(payload.game);
       }
+      const disconnectedPlayerName = payload.disconnectedPlayerName || 'Opponent';
       setStatusMessage(payload.message || 'Opponent has left the game. You win by forfeit.');
+      // Show disconnect modal
+      setDisconnectModal({ isOpen: true, playerName: disconnectedPlayerName });
       // Set game phase to complete
       setGamePhase('COMPLETE');
       // Set final score
@@ -926,6 +930,13 @@ const GameOfGo = () => {
         </ul>
       </div>
 
+      <PlayerDisconnectedModal
+        isOpen={disconnectModal.isOpen}
+        playerName={disconnectModal.playerName}
+        onClose={() => {
+          setDisconnectModal({ isOpen: false, playerName: '' });
+        }}
+      />
     </section>
   );
 };
