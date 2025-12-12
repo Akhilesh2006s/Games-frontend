@@ -527,7 +527,7 @@ const MatchingPennies = () => {
         })}
       </div>
 
-      {((result && (result.isGameComplete || currentGame?.status === 'COMPLETE')) || currentGame?.status === 'COMPLETE') && (
+      {result && (
         <div className={`rounded-3xl border p-6 text-center ${
           (result?.isGameComplete || currentGame?.status === 'COMPLETE')
             ? 'border-aurora/60 bg-aurora/20' 
@@ -580,19 +580,19 @@ const MatchingPennies = () => {
               </div>
             </>
           ) : (
-            <div className="mt-4 rounded-2xl border-2 border-blue-500/50 bg-gradient-to-br from-blue-500/20 via-blue-400/15 to-blue-500/20 p-6 backdrop-blur-sm">
+            <div className="mt-4 rounded-3xl border-2 border-blue-500/70 bg-gradient-to-br from-blue-600/30 via-blue-500/25 to-blue-600/30 p-8 backdrop-blur-md shadow-lg shadow-blue-500/20">
               {/* Winner Badge */}
-              <div className="mb-4 text-center">
+              <div className="mb-6 text-center">
                 {result.winner === 'host' ? (
-                  <p className="text-2xl font-bold text-green-400">
+                  <p className="text-3xl font-bold text-green-300 drop-shadow-lg">
                     🏆 {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} Wins!
                   </p>
                 ) : (
-                  <p className="text-2xl font-bold text-green-400">
+                  <p className="text-3xl font-bold text-green-300 drop-shadow-lg">
                     🏆 {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} Wins!
                   </p>
                 )}
-                <p className="text-sm text-white/60 mt-1">
+                <p className="text-base font-semibold text-white/90 mt-2">
                   {result.hostWon 
                     ? '✅ Same choice!'
                     : '❌ Different choices!'}
@@ -600,54 +600,54 @@ const MatchingPennies = () => {
               </div>
 
               {/* Player Selections */}
-              <div className="flex items-center justify-center gap-6">
+              <div className="flex items-center justify-center gap-8">
                 {/* Host Player */}
                 <div className="flex flex-col items-center">
-                  <p className="text-sm font-semibold text-white/80 mb-2">
+                  <p className="text-base font-bold text-white mb-3">
                     {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'}
                   </p>
-                  <div className={`rounded-xl border-2 p-4 ${
+                  <div className={`rounded-2xl border-3 p-5 shadow-lg ${
                     result.winner === 'host' 
-                      ? 'border-green-400 bg-green-400/20' 
-                      : 'border-white/20 bg-white/5'
+                      ? 'border-green-400 bg-green-400/30 shadow-green-400/30' 
+                      : 'border-blue-400/40 bg-blue-500/20 shadow-blue-400/20'
                   }`}>
-                    <p className="text-6xl">
+                    <p className="text-7xl">
                       {result.hostChoice === 'heads' ? '👑' : '🦅'}
                     </p>
                   </div>
-                  <p className="text-xs text-white/60 mt-2 capitalize">{result.hostChoice}</p>
+                  <p className="text-sm font-semibold text-white/80 mt-3 capitalize">{result.hostChoice}</p>
                 </div>
 
                 {/* VS Divider */}
                 <div className="flex flex-col items-center">
-                  <p className="text-3xl font-bold text-blue-300">VS</p>
+                  <p className="text-4xl font-bold text-blue-200 drop-shadow-md">VS</p>
                 </div>
 
                 {/* Guest Player */}
                 <div className="flex flex-col items-center">
-                  <p className="text-sm font-semibold text-white/80 mb-2">
+                  <p className="text-base font-bold text-white mb-3">
                     {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
                   </p>
-                  <div className={`rounded-xl border-2 p-4 ${
+                  <div className={`rounded-2xl border-3 p-5 shadow-lg ${
                     result.winner === 'guest' 
-                      ? 'border-green-400 bg-green-400/20' 
-                      : 'border-white/20 bg-white/5'
+                      ? 'border-green-400 bg-green-400/30 shadow-green-400/30' 
+                      : 'border-blue-400/40 bg-blue-500/20 shadow-blue-400/20'
                   }`}>
-                    <p className="text-6xl">
+                    <p className="text-7xl">
                       {result.guestChoice === 'heads' ? '👑' : '🦅'}
                     </p>
                   </div>
-                  <p className="text-xs text-white/60 mt-2 capitalize">{result.guestChoice}</p>
+                  <p className="text-sm font-semibold text-white/80 mt-3 capitalize">{result.guestChoice}</p>
                 </div>
               </div>
 
               {/* Score Display */}
-              <div className="mt-4 pt-4 border-t border-white/10 text-center">
-                <p className="text-sm text-white/70">
-                  Score: <span className="font-semibold text-white">{currentGame?.host?.studentName || currentGame?.host?.username || 'Host'}</span>{' '}
-                  <span className="text-blue-300 font-bold">{result.hostScore}</span> -{' '}
-                  <span className="text-blue-300 font-bold">{result.guestScore}</span>{' '}
-                  <span className="font-semibold text-white">{currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}</span>
+              <div className="mt-6 pt-6 border-t-2 border-blue-400/30 text-center">
+                <p className="text-base font-semibold text-white">
+                  Score: <span className="font-bold text-white">{currentGame?.host?.studentName || currentGame?.host?.username || 'Host'}</span>{' '}
+                  <span className="text-blue-200 font-bold text-xl">{result.hostScore}</span> -{' '}
+                  <span className="text-blue-200 font-bold text-xl">{result.guestScore}</span>{' '}
+                  <span className="font-bold text-white">{currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}</span>
                 </p>
               </div>
             </div>
