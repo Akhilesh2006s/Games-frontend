@@ -963,17 +963,7 @@ const ArenaPage = () => {
                 <div className="fixed inset-0 z-50 bg-night overflow-auto">
                   <div className="min-h-screen p-4 md:p-6">
                     {/* Full Screen Game Header */}
-                    <div className="mb-4 flex items-center justify-between">
-                      <button
-                        onClick={() => {
-                          setCurrentGame(null);
-                          setSelectedGameType(null);
-                          setStatusMessage('');
-                        }}
-                        className="btn-ghost"
-                      >
-                        ← Back to Arena
-                      </button>
+                    <div className="mb-4 flex items-center justify-end">
                       <div className="text-sm text-white/60">
                         Lobby: <span className="font-mono text-aurora">{currentGame.code}</span>
                       </div>
