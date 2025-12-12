@@ -370,9 +370,30 @@ const RockPaperScissors = () => {
       setStatusMessage(`${payload.rejectorName || 'Opponent'} declined the rematch.`);
     };
 
+    const handlePlayerDisconnected = (payload) => {
+      if (payload.game) {
+        setCurrentGame(payload.game);
+      }
+      setStatusMessage(payload.message || 'Opponent has left the game. You win by forfeit.');
+      // Set result to show game complete
+      setResult({
+        isGameComplete: true,
+        winner: payload.remainingPlayer,
+        hostScore: payload.game?.hostScore || 0,
+        guestScore: payload.game?.guestScore || 0,
+      });
+      setScores({
+        host: payload.game?.hostScore || 0,
+        guest: payload.game?.guestScore || 0,
+      });
+      setRoundsPlayed(30);
+    };
+
     socket.on('rematch:requested', handleRematchRequest);
     socket.on('rematch:accepted', handleRematchAccepted);
     socket.on('rematch:rejected', handleRematchRejected);
+    socket.on('game:player_disconnected', handlePlayerDisconnected);
+    socket.on('game:ended', handlePlayerDisconnected);
 
     return () => {
       socket.off('roundResult', handleResult);
@@ -386,6 +407,8 @@ const RockPaperScissors = () => {
       socket.off('rematch:requested', handleRematchRequest);
       socket.off('rematch:accepted', handleRematchAccepted);
       socket.off('rematch:rejected', handleRematchRejected);
+      socket.off('game:player_disconnected', handlePlayerDisconnected);
+      socket.off('game:ended', handlePlayerDisconnected);
       socket.off('rpsTimerUpdate', handleTimerUpdate);
     };
   }, [currentGame?.guest, refreshGameDetails, setStatusMessage, setCurrentGame, socket, lockedMove]);
@@ -567,7 +590,7 @@ const RockPaperScissors = () => {
                         socket.emit('rematch:request', { 
                           code: currentGame.code,
                           gameType: 'ROCK_PAPER_SCISSORS',
-                          gameSettings: { timePerMove: 15 }
+                          gameSettings: { timePerMove: 20 }
                         });
                         setStatusMessage('Rematch request sent. Waiting for opponent...');
                       } else {

@@ -222,13 +222,13 @@ const ArenaPage = () => {
           if (gameType === 'ROCK_PAPER_SCISSORS') {
             const startResponse = await api.post('/games/start-rps', {
               code: gameData.game.code,
-              timePerMove: 15, // Fixed 15 seconds
+              timePerMove: 20, // Fixed 20 seconds
             });
             console.log('Start RPS response:', startResponse.data);
           } else if (gameType === 'MATCHING_PENNIES') {
             const startResponse = await api.post('/games/start-pennies', {
               code: gameData.game.code,
-              timePerMove: 15, // Fixed 15 seconds
+              timePerMove: 20, // Fixed 20 seconds
             });
             console.log('Start Pennies response:', startResponse.data);
           }
@@ -289,13 +289,13 @@ const ArenaPage = () => {
           } else if (selectedGameType === 'ROCK_PAPER_SCISSORS') {
             await api.post('/games/start-rps', {
               code: currentGame.code,
-              timePerMove: 15, // Fixed 15 seconds
+              timePerMove: 20, // Fixed 20 seconds
             });
             setStatusMessage('Rock Paper Scissors started automatically! Both players connected.');
           } else if (selectedGameType === 'MATCHING_PENNIES') {
             await api.post('/games/start-pennies', {
               code: currentGame.code,
-              timePerMove: 15, // Fixed 15 seconds
+              timePerMove: 20, // Fixed 20 seconds
             });
             setStatusMessage('Matching Pennies started automatically! Both players connected.');
           }

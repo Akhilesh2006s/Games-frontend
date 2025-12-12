@@ -331,9 +331,30 @@ const MatchingPennies = () => {
       setStatusMessage(`${payload.rejectorName || 'Opponent'} declined the rematch.`);
     };
 
+    const handlePlayerDisconnected = (payload) => {
+      if (payload.game) {
+        setCurrentGame(payload.game);
+      }
+      setStatusMessage(payload.message || 'Opponent has left the game. You win by forfeit.');
+      // Set result to show game complete
+      setResult({
+        isGameComplete: true,
+        winner: payload.remainingPlayer,
+        hostScore: payload.game?.hostPenniesScore || 0,
+        guestScore: payload.game?.guestPenniesScore || 0,
+      });
+      setScores({
+        host: payload.game?.hostPenniesScore || 0,
+        guest: payload.game?.guestPenniesScore || 0,
+      });
+      setRoundsPlayed(30);
+    };
+
     socket.on('rematch:requested', handleRematchRequest);
     socket.on('rematch:accepted', handleRematchAccepted);
     socket.on('rematch:rejected', handleRematchRejected);
+    socket.on('game:player_disconnected', handlePlayerDisconnected);
+    socket.on('game:ended', handlePlayerDisconnected);
 
     return () => {
       socket.off('penniesResult', handleResult);
@@ -347,6 +368,8 @@ const MatchingPennies = () => {
       socket.off('rematch:requested', handleRematchRequest);
       socket.off('rematch:accepted', handleRematchAccepted);
       socket.off('rematch:rejected', handleRematchRejected);
+      socket.off('game:player_disconnected', handlePlayerDisconnected);
+      socket.off('game:ended', handlePlayerDisconnected);
       socket.off('penniesTimerUpdate', handleTimerUpdate);
     };
   }, [currentGame?.guest, refreshGameDetails, setStatusMessage, setCurrentGame, socket, isHost, currentGame, selectedGameType, setSelectedGameType, lockedChoice]);

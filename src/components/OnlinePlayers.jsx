@@ -43,9 +43,9 @@ const OnlinePlayers = ({ onJoinGame }) => {
             gameDetails = `${boardSize}x${boardSize} • No time control`;
           }
         } else if (gameType === 'ROCK_PAPER_SCISSORS') {
-          gameDetails = '15 seconds per move';
+          gameDetails = '20 seconds per move';
         } else if (gameType === 'MATCHING_PENNIES') {
-          gameDetails = '15 seconds per move';
+          gameDetails = '20 seconds per move';
         }
       } else if (game.activeStage) {
         gameType = game.activeStage;
@@ -64,9 +64,9 @@ const OnlinePlayers = ({ onJoinGame }) => {
             gameDetails = `${boardSize}x${boardSize} • No time control`;
           }
         } else if (gameType === 'ROCK_PAPER_SCISSORS') {
-          gameDetails = '15 seconds per move';
+          gameDetails = '20 seconds per move';
         } else if (gameType === 'MATCHING_PENNIES') {
-          gameDetails = '15 seconds per move';
+          gameDetails = '20 seconds per move';
         }
       }
       

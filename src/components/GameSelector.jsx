@@ -19,8 +19,8 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
     byoYomiPeriods: 5, // 5 periods for Japanese
     preset: null, // 'BLITZ_A', 'BLITZ_B', 'RAPID', or null for custom
   });
-  const [rpsTimePerMove, setRpsTimePerMove] = useState(15); // 15 seconds per move (default)
-  const [penniesTimePerMove, setPenniesTimePerMove] = useState(15); // 15 seconds per move (default)
+  const [rpsTimePerMove, setRpsTimePerMove] = useState(20); // 20 seconds per move (default)
+  const [penniesTimePerMove, setPenniesTimePerMove] = useState(20); // 20 seconds per move (default)
 
   // Keep ref in sync with state
   useEffect(() => {
@@ -67,7 +67,7 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
       if (gameType === 'MATCHING_PENNIES') {
         endpoint = '/games/start-pennies';
         message = 'Matching Pennies started! First to 10 points wins.';
-        requestBody.timePerMove = penniesTimePerMove || 15; // Default to 15 seconds
+        requestBody.timePerMove = penniesTimePerMove || 20; // Default to 20 seconds
       } else if (gameType === 'GAME_OF_GO') {
         endpoint = '/games/start-go';
         message = 'Game of Go started! Place stones to capture territory.';
@@ -89,7 +89,7 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
       } else {
         endpoint = '/games/start-rps';
         message = 'Rock Paper Scissors started! First to 10 points wins.';
-        requestBody.timePerMove = rpsTimePerMove || 15; // Default to 15 seconds
+        requestBody.timePerMove = rpsTimePerMove || 20; // Default to 20 seconds
       }
       
       const { data } = await api.post(endpoint, requestBody);
@@ -586,7 +586,7 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
                 {!game.hasOptions && (
                   <div className="mt-4">
                     <p className="text-xs text-white/50">
-                      Players have 15 seconds per move
+                      Players have 20 seconds per move
                     </p>
                   </div>
                 )}

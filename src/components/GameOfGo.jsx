@@ -4,7 +4,6 @@ import useGameStore from '../store/useGameStore';
 import useAuthStore from '../store/useAuthStore';
 import api from '../services/api';
 import useSocket from '../hooks/useSocket';
-import RematchModal from './RematchModal';
 
 const GameOfGo = () => {
   const { selectedGameType, setSelectedGameType, currentGame, statusMessage, setStatusMessage, setCurrentGame, resetGame } = useGameStore();
@@ -26,7 +25,6 @@ const GameOfGo = () => {
   const [gamePhase, setGamePhase] = useState('PLAY'); // 'PLAY', 'SCORING', 'COMPLETE'
   const [finalScore, setFinalScore] = useState(null);
   const [timeInfo, setTimeInfo] = useState({ black: null, white: null });
-  const [rematchModal, setRematchModal] = useState({ isOpen: false, opponentName: '', requesterId: null, gameType: null, gameSettings: null });
 
   const { socket, isConnected, isJoined } = useSocket({
     enabled: Boolean(currentGame),
@@ -441,90 +439,30 @@ const GameOfGo = () => {
     });
     socket.on('game:error', handleError);
 
-    // Rematch handlers
-    const handleRematchRequest = (payload) => {
-      const opponentName = payload.requesterName || 'Opponent';
-      setRematchModal({
-        isOpen: true,
-        opponentName,
-        requesterId: payload.requesterId,
-        gameType: payload.gameType,
-        gameSettings: payload.gameSettings,
-      });
-    };
 
-    const handleRematchAccepted = async (payload) => {
-      setRematchModal({ isOpen: false, opponentName: '', requesterId: null, gameType: null, gameSettings: null });
+    const handlePlayerDisconnected = (payload) => {
       if (payload.game) {
         setCurrentGame(payload.game);
-        // Set game type for auto-start
-        if (payload.gameType) {
-          setSelectedGameType(payload.gameType);
-        } else if (!selectedGameType) {
-          setSelectedGameType('GAME_OF_GO');
-        }
-        // Reset game state
-        setFinalScore(null);
-        setGamePhase('PLAY');
-        setBoard(() => {
-          const size = Number(payload.game?.goBoardSize || payload.gameSettings?.goBoardSize || 9);
-          return Array(size).fill(null).map(() => Array(size).fill(null));
-        });
-        setCapturedBlack(0);
-        setCapturedWhite(0);
-        setCurrentTurn('black');
-        setLastMove(null);
-        // Reset time info - will be updated from server when game starts
-        setTimeInfo({ black: null, white: null });
-        setStatusMessage('Rematch started! Both players connected.');
-        // Join new game room
-        if (socket && payload.newCode) {
-          socket.emit('joinGame', { code: payload.newCode });
-        }
-        // Refresh game details to get updated time state from server
-        setTimeout(async () => {
-          if (payload.game?.code) {
-            try {
-              const { data } = await api.get(`/games/code/${payload.game.code}`);
-              setCurrentGame(data.game);
-              // Update time info from server
-              if (data.game.goTimeState) {
-                const blackState = data.game.goTimeState.black;
-                const whiteState = data.game.goTimeState.white;
-                if (blackState && whiteState) {
-                  const blackTime = {
-                    mainTime: blackState.mainTime || 0,
-                    isByoYomi: blackState.isByoYomi || false,
-                    byoYomiTime: blackState.byoYomiTime || 0,
-                    byoYomiPeriods: blackState.byoYomiPeriods || 0,
-                    mode: data.game.goTimeControl?.mode || 'none',
-                  };
-                  const whiteTime = {
-                    mainTime: whiteState.mainTime || 0,
-                    isByoYomi: whiteState.isByoYomi || false,
-                    byoYomiTime: whiteState.byoYomiTime || 0,
-                    byoYomiPeriods: whiteState.byoYomiPeriods || 0,
-                    mode: data.game.goTimeControl?.mode || 'none',
-                  };
-                  setTimeInfo({ black: blackTime, white: whiteTime });
-                }
-              }
-            } catch (err) {
-              console.error('Failed to refresh game details after rematch:', err);
-            }
-          }
-        }, 500);
       }
+      setStatusMessage(payload.message || 'Opponent has left the game. You win by forfeit.');
+      // Set game phase to complete
+      setGamePhase('COMPLETE');
+      // Set final score
+      if (payload.game?.goFinalScore) {
+        setFinalScore(payload.game.goFinalScore);
+      } else {
+        const winnerColor = payload.remainingPlayer === 'host' ? 'black' : 'white';
+        setFinalScore({
+          winner: winnerColor,
+          reason: 'disconnect',
+          message: payload.message || 'Opponent disconnected. You win by forfeit.',
+        });
+      }
+      refreshGameDetails();
     };
 
-    const handleRematchRejected = (payload) => {
-      setRematchModal({ isOpen: false, opponentName: '', requesterId: null, gameType: null, gameSettings: null });
-      setStatusMessage(`${payload.rejectorName || 'Opponent'} declined the rematch.`);
-    };
-
-    socket.on('rematch:requested', handleRematchRequest);
-    socket.on('rematch:accepted', handleRematchAccepted);
-    socket.on('rematch:rejected', handleRematchRejected);
+    socket.on('game:player_disconnected', handlePlayerDisconnected);
+    socket.on('game:ended', handlePlayerDisconnected);
 
     return () => {
       socket.off('goMove', handleMove);
@@ -537,9 +475,8 @@ const GameOfGo = () => {
       socket.off('game:guest_joined', handleGuestJoined);
       socket.off('game:started');
       socket.off('game:error', handleError);
-      socket.off('rematch:requested', handleRematchRequest);
-      socket.off('rematch:accepted', handleRematchAccepted);
-      socket.off('rematch:rejected', handleRematchRejected);
+      socket.off('game:player_disconnected', handlePlayerDisconnected);
+      socket.off('game:ended', handlePlayerDisconnected);
     };
   }, [currentGame?.guest, refreshGameDetails, setStatusMessage, setCurrentGame, socket, myColor]);
 
@@ -912,24 +849,6 @@ const GameOfGo = () => {
           <div className="flex gap-4 mt-6 justify-center">
             <button
               onClick={() => {
-                if (socket && currentGame?.code) {
-                  socket.emit('rematch:request', { 
-                    code: currentGame.code,
-                    gameType: 'GAME_OF_GO',
-                    gameSettings: {
-                      boardSize: currentGame.goBoardSize || 9,
-                      timeControl: currentGame.goTimeControl || null,
-                    }
-                  });
-                  setStatusMessage('Rematch request sent. Waiting for opponent...');
-                }
-              }}
-              className="rounded-lg bg-gradient-to-r from-aurora/20 to-royal/20 border border-aurora/50 px-6 py-3 text-sm font-bold text-white hover:from-aurora/30 hover:to-royal/30 transition"
-            >
-              Rematch
-            </button>
-            <button
-              onClick={() => {
                 resetGame();
                 setSelectedGameType(null);
                 // Navigate to arena page (home)
@@ -1007,24 +926,6 @@ const GameOfGo = () => {
         </ul>
       </div>
 
-      <RematchModal
-        isOpen={rematchModal.isOpen}
-        opponentName={rematchModal.opponentName}
-        onAccept={() => {
-          if (socket && currentGame?.code && rematchModal.requesterId) {
-            socket.emit('rematch:accept', { code: currentGame.code, requesterId: rematchModal.requesterId });
-          }
-        }}
-        onReject={() => {
-          if (socket && currentGame?.code) {
-            socket.emit('rematch:reject', { code: currentGame.code });
-          }
-          setRematchModal({ isOpen: false, opponentName: '', requesterId: null, gameType: null, gameSettings: null });
-        }}
-        onClose={() => {
-          setRematchModal({ isOpen: false, opponentName: '', requesterId: null, gameType: null, gameSettings: null });
-        }}
-      />
     </section>
   );
 };
