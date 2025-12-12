@@ -557,27 +557,77 @@ const MatchingPennies = () => {
               </div>
             </>
           ) : (
-            <>
-              <p className="text-3xl font-display mt-2">
-                {result.winner === 'host' 
-                  ? `${currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} wins this round` 
-                  : `${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} wins this round`}
-              </p>
-              <p className="text-white/70 mt-2">
-                {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} chose <span className="font-semibold">{result.hostChoice}</span>
-              </p>
-              <p className="text-white/70">
-                {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} chose <span className="font-semibold">{result.guestChoice}</span>
-              </p>
-              <p className="text-sm text-white/40 mt-2">
-                {result.hostWon 
-                  ? `✅ Same choice! ${currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} wins.`
-                  : `❌ Different choices! ${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} wins.`}
-              </p>
-              <p className="text-sm text-white/40 mt-2">
-                Score: {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} {result.hostScore} - {result.guestScore} {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
-              </p>
-            </>
+            <div className="mt-4 rounded-2xl border-2 border-blue-500/50 bg-gradient-to-br from-blue-500/20 via-blue-400/15 to-blue-500/20 p-6 backdrop-blur-sm">
+              {/* Winner Badge */}
+              <div className="mb-4 text-center">
+                {result.winner === 'host' ? (
+                  <p className="text-2xl font-bold text-green-400">
+                    🏆 {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} Wins!
+                  </p>
+                ) : (
+                  <p className="text-2xl font-bold text-green-400">
+                    🏆 {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} Wins!
+                  </p>
+                )}
+                <p className="text-sm text-white/60 mt-1">
+                  {result.hostWon 
+                    ? '✅ Same choice!'
+                    : '❌ Different choices!'}
+                </p>
+              </div>
+
+              {/* Player Selections */}
+              <div className="flex items-center justify-center gap-6">
+                {/* Host Player */}
+                <div className="flex flex-col items-center">
+                  <p className="text-sm font-semibold text-white/80 mb-2">
+                    {currentGame?.host?.studentName || currentGame?.host?.username || 'Host'}
+                  </p>
+                  <div className={`rounded-xl border-2 p-4 ${
+                    result.winner === 'host' 
+                      ? 'border-green-400 bg-green-400/20' 
+                      : 'border-white/20 bg-white/5'
+                  }`}>
+                    <p className="text-6xl">
+                      {result.hostChoice === 'heads' ? '👑' : '🦅'}
+                    </p>
+                  </div>
+                  <p className="text-xs text-white/60 mt-2 capitalize">{result.hostChoice}</p>
+                </div>
+
+                {/* VS Divider */}
+                <div className="flex flex-col items-center">
+                  <p className="text-3xl font-bold text-blue-300">VS</p>
+                </div>
+
+                {/* Guest Player */}
+                <div className="flex flex-col items-center">
+                  <p className="text-sm font-semibold text-white/80 mb-2">
+                    {currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}
+                  </p>
+                  <div className={`rounded-xl border-2 p-4 ${
+                    result.winner === 'guest' 
+                      ? 'border-green-400 bg-green-400/20' 
+                      : 'border-white/20 bg-white/5'
+                  }`}>
+                    <p className="text-6xl">
+                      {result.guestChoice === 'heads' ? '👑' : '🦅'}
+                    </p>
+                  </div>
+                  <p className="text-xs text-white/60 mt-2 capitalize">{result.guestChoice}</p>
+                </div>
+              </div>
+
+              {/* Score Display */}
+              <div className="mt-4 pt-4 border-t border-white/10 text-center">
+                <p className="text-sm text-white/70">
+                  Score: <span className="font-semibold text-white">{currentGame?.host?.studentName || currentGame?.host?.username || 'Host'}</span>{' '}
+                  <span className="text-blue-300 font-bold">{result.hostScore}</span> -{' '}
+                  <span className="text-blue-300 font-bold">{result.guestScore}</span>{' '}
+                  <span className="font-semibold text-white">{currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}</span>
+                </p>
+              </div>
+            </div>
           )}
         </div>
       )}
