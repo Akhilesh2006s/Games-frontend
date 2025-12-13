@@ -376,6 +376,13 @@ const RockPaperScissors = () => {
       setStatusMessage(`${payload.rejectorName || 'Opponent'} declined the rematch.`);
     };
 
+    // Handle immediate notification when player leaves (works even if game is complete)
+    const handlePlayerLeft = (payload) => {
+      const disconnectedPlayerName = payload.disconnectedPlayerName || 'Opponent';
+      setStatusMessage(`⚠️ ${disconnectedPlayerName} has left the game and cannot return.`);
+    };
+
+    // Handle game ending due to disconnect
     const handlePlayerDisconnected = (payload) => {
       if (payload.game) {
         setCurrentGame(payload.game);
@@ -401,12 +408,14 @@ const RockPaperScissors = () => {
     socket.on('rematch:requested', handleRematchRequest);
     socket.on('rematch:accepted', handleRematchAccepted);
     socket.on('rematch:rejected', handleRematchRejected);
-    socket.on('game:player_disconnected', handlePlayerDisconnected);
+    socket.on('game:player_left', handlePlayerLeft); // Immediate notification
+    socket.on('game:player_disconnected', handlePlayerDisconnected); // Game ended due to disconnect
     socket.on('game:ended', handlePlayerDisconnected);
 
     return () => {
       socket.off('roundResult', handleResult);
       socket.off('opponentLocked', handleOpponentLock);
+      socket.off('game:player_left', handlePlayerLeft);
       socket.off('game:joined', handleJoined);
       socket.off('game:peer_joined', handlePeerJoined);
       socket.off('game:guest_joined', handleGuestJoined);
@@ -704,15 +713,37 @@ const RockPaperScissors = () => {
               {/* Win/Lose Message */}
               <div className="mt-6 pt-6 border-t-2 border-blue-400/30 text-center">
                 {result.result === 'draw' ? (
-                  <p className="text-base font-semibold text-yellow-300">It's a draw!</p>
-                ) : (
-                  <p className="text-base font-semibold text-white">
-                    {(isHost && result.result === 'host') || (!isHost && result.result === 'guest') 
-                      ? <span className="text-green-300 font-bold text-xl">You won!</span>
-                      : <span className="text-red-300 font-bold text-xl">You lose!</span>
-                    }
-                  </p>
-                )}
+                  <p className="text-base font-semibold text-yellow-300">Game Results : It's a draw!</p>
+                ) : (() => {
+                  const userWon = (isHost && result.result === 'host') || (!isHost && result.result === 'guest');
+                  const winnerName = result.result === 'host' 
+                    ? (currentGame?.host?.studentName || currentGame?.host?.username || 'Host')
+                    : (currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest');
+                  const winnerMove = result.result === 'host' ? result.hostMove : result.guestMove;
+                  
+                  // Map move to display name
+                  const moveDisplayMap = {
+                    rock: 'Stone',
+                    paper: 'Paper',
+                    scissors: 'Scissors'
+                  };
+                  
+                  const moveDisplayName = moveDisplayMap[winnerMove] || winnerMove;
+                  
+                  return (
+                    <p className="text-base font-semibold text-white">
+                      {userWon ? (
+                        <span className="text-green-300 font-bold text-xl">
+                          Game Results : You won! You chose {moveDisplayName} icon
+                        </span>
+                      ) : (
+                        <span className="text-red-300 font-bold text-xl">
+                          Game Results : You lose! {winnerName} chooses {moveDisplayName} icon
+                        </span>
+                      )}
+                    </p>
+                  );
+                })()}
               </div>
             </div>
           )}

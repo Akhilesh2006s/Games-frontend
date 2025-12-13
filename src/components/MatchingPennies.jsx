@@ -358,6 +358,13 @@ const MatchingPennies = () => {
       setStatusMessage(`${payload.rejectorName || 'Opponent'} declined the rematch.`);
     };
 
+    // Handle immediate notification when player leaves (works even if game is complete)
+    const handlePlayerLeft = (payload) => {
+      const disconnectedPlayerName = payload.disconnectedPlayerName || 'Opponent';
+      setStatusMessage(`⚠️ ${disconnectedPlayerName} has left the game and cannot return.`);
+    };
+
+    // Handle game ending due to disconnect
     const handlePlayerDisconnected = (payload) => {
       if (payload.game) {
         setCurrentGame(payload.game);
@@ -383,7 +390,8 @@ const MatchingPennies = () => {
     socket.on('rematch:requested', handleRematchRequest);
     socket.on('rematch:accepted', handleRematchAccepted);
     socket.on('rematch:rejected', handleRematchRejected);
-    socket.on('game:player_disconnected', handlePlayerDisconnected);
+    socket.on('game:player_left', handlePlayerLeft); // Immediate notification
+    socket.on('game:player_disconnected', handlePlayerDisconnected); // Game ended due to disconnect
     socket.on('game:ended', handlePlayerDisconnected);
 
     return () => {
@@ -398,6 +406,7 @@ const MatchingPennies = () => {
       socket.off('rematch:requested', handleRematchRequest);
       socket.off('rematch:accepted', handleRematchAccepted);
       socket.off('rematch:rejected', handleRematchRejected);
+      socket.off('game:player_left', handlePlayerLeft);
       socket.off('game:player_disconnected', handlePlayerDisconnected);
       socket.off('game:ended', handlePlayerDisconnected);
       socket.off('penniesTimerUpdate', handleTimerUpdate);
@@ -471,11 +480,13 @@ const MatchingPennies = () => {
             </p>
           </div>
         </div>
-        <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center">
-          <p className="text-base font-semibold text-white/90">
-            🎯 Both Players Choose
-          </p>
-          <p className="text-base font-semibold text-white/90 mt-2">{roleDescription}</p>
+        <div className="mt-4 flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+          <div className="text-center">
+            <p className="text-base font-semibold text-white/90">
+              🎯 Both Players Choose
+            </p>
+            <p className="text-base font-semibold text-white/90 mt-2">{roleDescription}</p>
+          </div>
         </div>
         <p className={`mt-4 ${(typeof statusMessage === 'string' && statusMessage.includes('Round complete')) ? 'text-lg font-bold text-white' : 'text-white/60'}`}>
           {statusMessage || opponentStatus}

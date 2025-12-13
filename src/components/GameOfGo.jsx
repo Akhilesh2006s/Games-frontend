@@ -441,6 +441,13 @@ const GameOfGo = () => {
     socket.on('game:error', handleError);
 
 
+    // Handle immediate notification when player leaves (works even if game is complete)
+    const handlePlayerLeft = (payload) => {
+      const disconnectedPlayerName = payload.disconnectedPlayerName || 'Opponent';
+      setStatusMessage(`⚠️ ${disconnectedPlayerName} has left the game and cannot return.`);
+    };
+
+    // Handle game ending due to disconnect
     const handlePlayerDisconnected = (payload) => {
       if (payload.game) {
         setCurrentGame(payload.game);
@@ -465,7 +472,8 @@ const GameOfGo = () => {
       refreshGameDetails();
     };
 
-    socket.on('game:player_disconnected', handlePlayerDisconnected);
+    socket.on('game:player_left', handlePlayerLeft); // Immediate notification
+    socket.on('game:player_disconnected', handlePlayerDisconnected); // Game ended due to disconnect
     socket.on('game:ended', handlePlayerDisconnected);
 
     return () => {
@@ -479,6 +487,7 @@ const GameOfGo = () => {
       socket.off('game:guest_joined', handleGuestJoined);
       socket.off('game:started');
       socket.off('game:error', handleError);
+      socket.off('game:player_left', handlePlayerLeft);
       socket.off('game:player_disconnected', handlePlayerDisconnected);
       socket.off('game:ended', handlePlayerDisconnected);
     };
