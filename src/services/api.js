@@ -2,7 +2,7 @@ import axios from 'axios';
 import useAuthStore from '../store/useAuthStore';
 
 const API_BASE =
-  import.meta.env?.VITE_API_URL?.replace(/\/$/, '') || 'http://206.189.130.124:5000/api';
+  import.meta.env?.VITE_API_URL?.replace(/\/$/, '') || 'https://api.globalgoleague.com/api';
 
 const api = axios.create({
   baseURL: API_BASE,
@@ -30,7 +30,7 @@ api.interceptors.response.use(
 export const socketBaseUrl =
   import.meta.env?.VITE_SOCKET_URL ||
   API_BASE.replace(/\/api$/, '') ||
-  'http://206.189.130.124:5000';
+  'https://api.globalgoleague.com';
 
 export default api;
 
