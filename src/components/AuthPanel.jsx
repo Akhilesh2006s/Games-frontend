@@ -50,37 +50,39 @@ const AuthPanel = ({ onSuccess }) => {
   };
 
   return (
-    <div id="auth" className="glass-panel relative overflow-hidden p-6 text-white">
+    <div id="auth" className="glass-panel relative overflow-hidden p-8 text-white">
       <div className="mb-6 flex gap-2 rounded-full bg-white/5 p-1">
         {['login', 'register'].map((type) => (
           <button
             key={type}
             type="button"
-            className={`flex-1 rounded-full px-4 py-2 text-sm uppercase tracking-wide ${
-              mode === type ? 'bg-royal text-white shadow-neon' : 'text-white/70'
+            className={`flex-1 rounded-full px-4 py-2 text-sm font-semibold uppercase tracking-wide transition-all ${
+              mode === type 
+                ? 'bg-gradient-to-r from-purple-600 to-purple-500 text-white shadow-lg shadow-purple-500/50' 
+                : 'text-white/70 hover:text-white'
             }`}
             onClick={() => setMode(type)}
           >
-            {type === 'login' ? 'Login' : 'Sign Up'}
+            {type === 'login' ? 'LOGIN' : 'SIGN UP'}
           </button>
         ))}
       </div>
-      <form className="space-y-4" onSubmit={handleSubmit}>
+      <form className="space-y-5" onSubmit={handleSubmit}>
         {mode === 'register' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <label className="text-sm uppercase tracking-wide text-white/60">Gamertag</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-white/80 mb-2">Gamertag</label>
             <input
               required
               name="username"
               value={form.username}
               onChange={handleChange}
               placeholder="Celestial Ranger"
-              className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-aurora"
+              className="w-full rounded-xl border border-purple-500/30 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
             />
           </motion.div>
         )}
         <div>
-          <label className="text-sm uppercase tracking-wide text-white/60">Email</label>
+          <label className="block text-xs font-semibold uppercase tracking-wider text-white/80 mb-2">EMAIL</label>
           <input
             required
             type="email"
@@ -88,11 +90,11 @@ const AuthPanel = ({ onSuccess }) => {
             value={form.email}
             onChange={handleChange}
             placeholder="student@bennett.edu.in"
-            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-aurora"
+            className="w-full rounded-xl border border-purple-500/30 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
           />
         </div>
         <div>
-          <label className="text-sm uppercase tracking-wide text-white/60">Password</label>
+          <label className="block text-xs font-semibold uppercase tracking-wider text-white/80 mb-2">PASSWORD</label>
           <input
             required
             type="password"
@@ -100,16 +102,20 @@ const AuthPanel = ({ onSuccess }) => {
             value={form.password}
             onChange={handleChange}
             placeholder="••••••••"
-            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-pulse"
+            className="w-full rounded-xl border border-purple-500/30 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
           />
         </div>
-        {error && <p className="text-sm text-pulse">{error}</p>}
-        <button type="submit" className="btn-primary w-full" disabled={loading}>
-          {loading ? 'Syncing...' : mode === 'login' ? 'Launch Session' : 'Register'}
+        {error && <p className="text-sm text-pulse font-medium">{error}</p>}
+        <button 
+          type="submit" 
+          className="w-full rounded-xl px-6 py-4 font-bold text-white uppercase tracking-wider bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 hover:from-pink-600 hover:via-purple-600 hover:to-blue-600 transition-all shadow-lg shadow-purple-500/50 hover:shadow-xl hover:shadow-purple-500/60 disabled:opacity-50 disabled:cursor-not-allowed" 
+          disabled={loading}
+        >
+          {loading ? 'Syncing...' : 'LAUNCH SESSION'}
         </button>
       </form>
-      <p className="mt-4 text-center text-xs uppercase tracking-widest text-white/40">
-        ceteris-paribus multiplayer authentication
+      <p className="mt-6 text-center text-xs uppercase tracking-widest text-white/40">
+        CETERIS-PARIBUS MULTIPLAYER AUTHENTICATION
       </p>
     </div>
   );

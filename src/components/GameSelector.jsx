@@ -122,7 +122,7 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
       stage: '1',
       title: 'Rock • Paper • Scissors',
       description: isRpsUnlocked 
-        ? 'Classic hand game. Choose rock, paper, or scissors. Both players play the match for a total of 30 rounds. for you!'
+        ? 'Classic hand game. Choose rock, paper, or scissors. Both players play the match for a total of 30 rounds.<br />'
         : '🔒 Locked - Contact an admin to unlock this game.',
       icon: '✊',
       gradient: 'from-pulse/20 via-royal/20 to-aurora/20',
@@ -250,7 +250,7 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
                 <h3 className="mb-2 text-xl font-bold text-white">{game.title}</h3>
 
                 {/* Description */}
-                <p className="mb-4 text-sm leading-relaxed text-white/70">{game.description}</p>
+                <p className="mb-4 text-sm leading-relaxed text-white/70" dangerouslySetInnerHTML={{ __html: game.description }} />
 
                 {/* Features */}
                 <div className="flex flex-wrap items-center gap-3 mb-4">

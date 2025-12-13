@@ -487,7 +487,7 @@ const ArenaPage = () => {
                     <h2 className="text-2xl font-semibold mb-4">Select a Game</h2>
                     <p className="text-white/60 mb-6">Choose a game to play, then create a code to invite your opponent.</p>
                     <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
-                      <div className={`glass-panel p-6 text-white border-2 transition text-left ${
+                      <div className={`glass-panel p-6 text-white border-2 transition text-left flex flex-col ${
                         user?.rpsUnlocked !== true
                           ? 'border-red-500/30 bg-gradient-to-br from-red-500/10 via-red-500/5 to-transparent opacity-60'
                           : selectedGameType === 'ROCK_PAPER_SCISSORS'
@@ -508,12 +508,10 @@ const ArenaPage = () => {
                           )}
                         </div>
                         <h3 className="mb-2 text-xl font-bold text-white">Rock • Paper • Scissors</h3>
-                        <p className="mb-4 text-sm leading-relaxed text-white/70">
-                          {user?.rpsUnlocked === true
-                            ? 'Classic hand game. Choose rock, paper, or scissors. Both players play the match for a total of 30 rounds.'
-                            : '🔒 Locked - Contact an admin to unlock this game.'}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-3">
+                        <p className="mb-4 text-sm leading-relaxed text-white/70" dangerouslySetInnerHTML={{ __html: user?.rpsUnlocked === true
+                            ? 'Classic hand game. Choose rock, paper, or scissors. Both players play the match for a total of 30 rounds.<br />'
+                            : '🔒 Locked - Contact an admin to unlock this game.'}} />
+                        <div className="flex flex-wrap items-center gap-3 mb-6">
                           <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">✊ Rock</span>
                           <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">✋ Paper</span>
                           <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">✌️ Scissors</span>
@@ -522,13 +520,13 @@ const ArenaPage = () => {
                           <button
                             onClick={() => handleSelectGame('ROCK_PAPER_SCISSORS')}
                             disabled={creatingGame}
-                            className="mt-4 w-full rounded-lg bg-gradient-to-r from-aurora/20 to-royal/20 border border-aurora/50 px-4 py-2 text-sm font-bold text-white transition-all hover:from-aurora/30 hover:to-royal/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="mt-auto w-full rounded-lg bg-gradient-to-r from-aurora/20 to-royal/20 border border-aurora/50 px-4 py-2 text-sm font-bold text-white transition-all hover:from-aurora/30 hover:to-royal/30 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Select Game
                           </button>
                         )}
                       </div>
-                      <div className={`glass-panel p-6 text-white border-2 transition text-left ${
+                      <div className={`glass-panel p-6 text-white border-2 transition text-left flex flex-col ${
                         user?.goUnlocked !== true
                           ? 'border-red-500/30 bg-gradient-to-br from-red-500/10 via-red-500/5 to-transparent opacity-60'
                           : selectedGameType === 'GAME_OF_GO' 
@@ -556,13 +554,13 @@ const ArenaPage = () => {
                             ? 'Strategic board game. Place stones to surround territory and capture opponent stones.'
                             : '🔒 Locked - Contact an admin to unlock this game.'}
                         </p>
-                        <div className="flex flex-wrap items-center gap-3 mb-4">
+                        <div className="flex flex-wrap items-center gap-3 mb-6">
                           <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">⚫ Black</span>
                           <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">⚪ White</span>
                         </div>
 
                         {selectedGameType === 'GAME_OF_GO' && user?.goUnlocked === true && (
-                          <div className="mt-6 pt-6 border-t border-white/10 space-y-4">
+                          <div className="mt-6 pt-6 border-t border-white/10 space-y-4 flex-1 flex flex-col">
                             {/* Board Size Selection */}
                             <div>
                               <label className="block text-xs font-semibold uppercase tracking-wider text-white/50 mb-2">
@@ -796,7 +794,7 @@ const ArenaPage = () => {
                                 }
                               }}
                               disabled={creatingGame || user?.goUnlocked !== true}
-                              className={`w-full mt-4 rounded-lg border px-4 py-3 text-sm font-bold transition-all ${
+                              className={`w-full mt-auto rounded-lg border px-4 py-3 text-sm font-bold transition-all ${
                                 user?.goUnlocked === true
                                   ? 'bg-gradient-to-r from-aurora/20 to-royal/20 border-aurora/50 text-white hover:from-aurora/30 hover:to-royal/30'
                                   : 'bg-red-500/20 border-red-500/50 text-red-400 cursor-not-allowed'
@@ -817,7 +815,7 @@ const ArenaPage = () => {
                               }
                             }}
                             disabled={user?.goUnlocked !== true}
-                            className={`w-full mt-4 rounded-lg border px-4 py-2 text-sm font-semibold transition ${
+                            className={`w-full mt-auto rounded-lg border px-4 py-2 text-sm font-semibold transition ${
                               user?.goUnlocked === true
                                 ? 'border-white/20 bg-white/5 text-white hover:bg-white/10'
                                 : 'border-red-500/50 bg-red-500/20 text-red-400 cursor-not-allowed opacity-60'
@@ -827,7 +825,7 @@ const ArenaPage = () => {
                           </button>
                         )}
                       </div>
-                      <div className={`glass-panel p-6 text-white border-2 transition text-left ${
+                      <div className={`glass-panel p-6 text-white border-2 transition text-left flex flex-col ${
                         user?.penniesUnlocked !== true
                           ? 'border-red-500/30 bg-gradient-to-br from-red-500/10 via-red-500/5 to-transparent opacity-60'
                           : selectedGameType === 'MATCHING_PENNIES'
@@ -853,7 +851,7 @@ const ArenaPage = () => {
                             ? 'A psychology game where both players choose either Heads or Tails. Both players play the match for a total of 30 rounds.'
                             : '🔒 Locked - Contact an admin to unlock this game.'}
                         </p>
-                        <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-3 mb-6">
                           <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">👑 Heads</span>
                           <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">🦅 Tails</span>
                         </div>
@@ -861,7 +859,7 @@ const ArenaPage = () => {
                           <button
                             onClick={() => handleSelectGame('MATCHING_PENNIES')}
                             disabled={creatingGame}
-                            className="mt-4 w-full rounded-lg bg-gradient-to-r from-aurora/20 to-royal/20 border border-aurora/50 px-4 py-2 text-sm font-bold text-white transition-all hover:from-aurora/30 hover:to-royal/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="mt-auto w-full rounded-lg bg-gradient-to-r from-aurora/20 to-royal/20 border border-aurora/50 px-4 py-2 text-sm font-bold text-white transition-all hover:from-aurora/30 hover:to-royal/30 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Select Game
                           </button>

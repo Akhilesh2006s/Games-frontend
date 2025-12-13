@@ -1,37 +1,285 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color: #fdfdfd;
-  background-color: #05040d;
-  font-family: 'Space Grotesk', system-ui, sans-serif;
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+@layer base {
+  :root {
+    --background: 222 47% 6%;
+    --foreground: 210 40% 98%;
+
+    --card: 222 47% 8%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222 47% 8%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 192 100% 50%;
+    --primary-foreground: 222 47% 6%;
+
+    --secondary: 270 80% 60%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 222 30% 15%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 175 80% 45%;
+    --accent-foreground: 222 47% 6%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 222 30% 20%;
+    --input: 222 30% 20%;
+    --ring: 192 100% 50%;
+
+    --radius: 0.75rem;
+
+    /* Custom colors */
+    --neon-blue: 192 100% 50%;
+    --neon-purple: 270 80% 60%;
+    --neon-teal: 175 80% 45%;
+    --neon-cyan: 185 100% 60%;
+    --deep-navy: 222 47% 6%;
+    --charcoal: 220 30% 10%;
+
+    /* Game-specific colors (keep existing) */
+    --night: #05040d;
+    --nebula: #1b163a;
+    --pulse: #ff5771;
+    --aurora: #53ffe3;
+    --royal: #5b5fff;
+
+    /* Gradients */
+    --gradient-neon: linear-gradient(135deg, hsl(192 100% 50%) 0%, hsl(270 80% 60%) 50%, hsl(175 80% 45%) 100%);
+    --gradient-hero: linear-gradient(180deg, hsl(222 47% 8%) 0%, hsl(222 47% 4%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(222 30% 12%) 0%, hsl(222 30% 8%) 100%);
+    --gradient-glow: radial-gradient(ellipse at center, hsl(192 100% 50% / 0.15) 0%, transparent 70%);
+
+    /* Shadows */
+    --shadow-neon: 0 0 30px hsl(192 100% 50% / 0.3);
+    --shadow-neon-lg: 0 0 60px hsl(192 100% 50% / 0.4), 0 0 120px hsl(270 80% 60% / 0.2);
+    --shadow-card: 0 8px 32px hsl(0 0% 0% / 0.4);
+    --shadow-glow-purple: 0 0 40px hsl(270 80% 60% / 0.4);
+    --shadow-glow-teal: 0 0 40px hsl(175 80% 45% / 0.4);
+
+    --sidebar-background: 222 47% 6%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 192 100% 50%;
+    --sidebar-primary-foreground: 222 47% 6%;
+    --sidebar-accent: 222 30% 15%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 222 30% 20%;
+    --sidebar-ring: 192 100% 50%;
+  }
+
+  .dark {
+    --background: 222 47% 6%;
+    --foreground: 210 40% 98%;
+  }
 }
 
-body {
-  margin: 0;
-  min-height: 100vh;
-  background: radial-gradient(circle at 20% 20%, rgba(91, 95, 255, 0.25), transparent 45%),
-    radial-gradient(circle at 80% 0%, rgba(255, 87, 113, 0.25), transparent 40%),
-    #05040d;
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+    background: linear-gradient(180deg, hsl(222 47% 6%) 0%, hsl(220 30% 4%) 100%);
+    margin: 0;
+    min-height: 100vh;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
 }
 
-#root {
-  min-height: 100vh;
+@layer components {
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--secondary)) 50%, hsl(var(--accent)) 100%);
+  }
+
+  .text-gradient-blue {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(90deg, hsl(var(--primary)) 0%, hsl(var(--neon-cyan)) 100%);
+  }
+
+  .btn-primary {
+    @apply relative overflow-hidden rounded-lg px-8 py-4 font-display font-bold text-lg uppercase tracking-wider;
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+    color: hsl(var(--deep-navy));
+    box-shadow: var(--shadow-neon);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: var(--shadow-neon-lg);
+  }
+
+  .btn-primary::before {
+    content: '';
+    @apply absolute inset-0 opacity-0 transition-opacity duration-300;
+    background: linear-gradient(135deg, hsl(var(--accent)) 0%, hsl(var(--primary)) 100%);
+  }
+
+  .btn-primary:hover::before {
+    @apply opacity-100;
+  }
+
+  .glass-panel {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-neon;
+    background: linear-gradient(145deg, hsl(222 30% 12% / 0.8) 0%, hsl(222 30% 8% / 0.6) 100%);
+  }
+
+  .card-glass {
+    @apply relative rounded-xl border border-border/30 overflow-hidden;
+    background: linear-gradient(145deg, hsl(222 30% 12% / 0.8) 0%, hsl(222 30% 8% / 0.6) 100%);
+    backdrop-filter: blur(20px);
+  }
+
+  .card-neon {
+    @apply card-glass transition-all duration-300;
+  }
+
+  .card-neon:hover {
+    border-color: hsl(var(--primary) / 0.5);
+    box-shadow: 0 0 30px hsl(var(--primary) / 0.2), inset 0 0 30px hsl(var(--primary) / 0.05);
+  }
+
+  .glow-effect {
+    @apply relative;
+  }
+
+  .glow-effect::before {
+    content: '';
+    @apply absolute -inset-1 rounded-xl opacity-0 blur-xl transition-opacity duration-500;
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--secondary)) 100%);
+  }
+
+  .glow-effect:hover::before {
+    @apply opacity-30;
+  }
+
+  .nav-link {
+    @apply relative font-display text-sm uppercase tracking-wider text-muted-foreground transition-colors duration-300;
+  }
+
+  .nav-link:hover {
+    @apply text-primary;
+  }
+
+  .nav-link::after {
+    content: '';
+    @apply absolute -bottom-1 left-0 h-0.5 w-0 bg-primary transition-all duration-300;
+  }
+
+  .nav-link:hover::after {
+    @apply w-full;
+  }
+
+  .section-title {
+    @apply font-display text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight;
+  }
+
+  .section-subtitle {
+    @apply font-body text-lg md:text-xl text-muted-foreground max-w-2xl;
+  }
+
+  .hero-glow {
+    @apply absolute rounded-full blur-3xl opacity-30 animate-pulse-slow;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-white/20 px-6 py-3 font-semibold uppercase tracking-wider text-white/80 transition hover:border-aurora hover:text-aurora;
+  }
 }
 
-.glass-panel {
-  @apply bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-neon;
-}
+@layer utilities {
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
 
-.btn-primary {
-  @apply inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-pulse via-royal to-aurora px-6 py-3 font-semibold uppercase tracking-wider shadow-neon transition hover:scale-105;
-}
+  .animate-pulse-slow {
+    animation: pulse-slow 4s ease-in-out infinite;
+  }
 
-.btn-ghost {
-  @apply inline-flex items-center justify-center gap-2 rounded-full border border-white/20 px-6 py-3 font-semibold uppercase tracking-wider text-white/80 transition hover:border-aurora hover:text-aurora;
+  .animate-glow {
+    animation: glow 2s ease-in-out infinite alternate;
+  }
+
+  .animate-spin-slow {
+    animation: spin 20s linear infinite;
+  }
+
+  .animate-stone-place {
+    animation: stonePlace 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .animate-stone-glow {
+    animation: stoneGlow 0.6s ease-out;
+  }
+
+  .bg-grid-pattern {
+    background-image: 
+      linear-gradient(to right, hsl(var(--border) / 0.1) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--border) / 0.1) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-20px); }
+  }
+
+  @keyframes pulse-slow {
+    0%, 100% { opacity: 0.3; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.1); }
+  }
+
+  @keyframes glow {
+    0% { box-shadow: 0 0 20px hsl(var(--primary) / 0.4); }
+    100% { box-shadow: 0 0 40px hsl(var(--primary) / 0.6), 0 0 80px hsl(var(--secondary) / 0.3); }
+  }
+
+  @keyframes stonePlace {
+    0% {
+      transform: translate(-50%, -50%) scale(0);
+      opacity: 0;
+    }
+    50% {
+      transform: translate(-50%, -50%) scale(1.2);
+      opacity: 1;
+    }
+    100% {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes stoneGlow {
+    0% {
+      opacity: 0;
+      transform: scale(0.5);
+    }
+    50% {
+      opacity: 0.6;
+      transform: scale(1.5);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(2);
+    }
+  }
 }
 
 /* Style select dropdown options */

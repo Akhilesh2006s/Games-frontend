@@ -4,6 +4,7 @@ import GoBoard3D from './GoBoard3D';
 
 export default function HeroSection() {
   const navigate = useNavigate();
+  
   return (
     <section
       id="home"
@@ -84,3 +85,4 @@ export default function HeroSection() {
     </section>
   );
 }
+
