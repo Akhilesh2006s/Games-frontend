@@ -26,6 +26,7 @@ const GameOfGo = () => {
   const [gamePhase, setGamePhase] = useState('PLAY'); // 'PLAY', 'SCORING', 'COMPLETE'
   const [finalScore, setFinalScore] = useState(null);
   const [timeInfo, setTimeInfo] = useState({ black: null, white: null });
+  const [disconnectModal, setDisconnectModal] = useState({ isOpen: false, playerName: '' });
 
   const { socket, isConnected, isJoined } = useSocket({
     enabled: Boolean(currentGame),
