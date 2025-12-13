@@ -142,17 +142,68 @@ const AdminDashboard = () => {
     }
   };
 
-  const toggleGameUnlock = async (userId, gameType, currentStatus) => {
+  const toggleGameUnlock = async (userId, gameType, currentStatus, email) => {
     try {
-      setLoading(true);
-      await api.put(`/admin/user/${userId}/game-unlock`, { gameType, unlocked: !currentStatus });
-      // Refresh game access list
-      await fetchGameAccess();
+      // If userId is null/undefined (student hasn't logged in), use email instead
+      const identifier = userId || 'new';
+      
+      // Optimistic update - update UI immediately for instant feedback
+      setGameAccessList(prevList => 
+        prevList.map(item => {
+          if ((item._id && item._id === userId) || (!item._id && item.email === email)) {
+            return {
+              ...item,
+              goUnlocked: gameType === 'go' ? !currentStatus : item.goUnlocked,
+              rpsUnlocked: gameType === 'rps' ? !currentStatus : item.rpsUnlocked,
+              penniesUnlocked: gameType === 'pennies' ? !currentStatus : item.penniesUnlocked,
+            };
+          }
+          return item;
+        })
+      );
+      
+      // Make API call in background
+      const response = await api.put(`/admin/user/${identifier}/game-unlock`, { 
+        gameType, 
+        unlocked: !currentStatus,
+        email: email // Pass email for students who haven't logged in
+      });
+      
+      // Update with server response (in case _id was created for new user)
+      if (response.data?.user) {
+        setGameAccessList(prevList => 
+          prevList.map(item => {
+            if ((item._id && item._id === userId) || (!item._id && item.email === email)) {
+              return {
+                ...item,
+                _id: response.data.user.id || item._id,
+                goUnlocked: response.data.user.goUnlocked,
+                rpsUnlocked: response.data.user.rpsUnlocked,
+                penniesUnlocked: response.data.user.penniesUnlocked,
+              };
+            }
+            return item;
+          })
+        );
+      }
+      
       setError('');
     } catch (err) {
+      // Revert optimistic update on error
+      setGameAccessList(prevList => 
+        prevList.map(item => {
+          if ((item._id && item._id === userId) || (!item._id && item.email === email)) {
+            return {
+              ...item,
+              goUnlocked: gameType === 'go' ? currentStatus : item.goUnlocked,
+              rpsUnlocked: gameType === 'rps' ? currentStatus : item.rpsUnlocked,
+              penniesUnlocked: gameType === 'pennies' ? currentStatus : item.penniesUnlocked,
+            };
+          }
+          return item;
+        })
+      );
       setError(err.response?.data?.message || 'Failed to update unlock status');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -202,8 +253,6 @@ const AdminDashboard = () => {
   useEffect(() => {
     if (activeTab === 'gameAccess') {
       fetchGameAccess();
-      // Clear selections when filters change
-      setSelectedUsers(new Set());
     }
   }, [activeTab, gameAccessSelectedGroup, gameAccessSelectedClassroom, gameAccessSelectedTeam, gameAccessSearchQuery]);
 
@@ -680,60 +729,6 @@ const AdminDashboard = () => {
             <div className="mb-4 flex items-center justify-between flex-wrap gap-4">
               <h2 className="text-xl font-semibold text-white">Filters & Search</h2>
               <div className="flex gap-3 flex-wrap">
-                {selectedUsers.size > 0 && (
-                  <>
-                    <button
-                      onClick={async () => {
-                        if (window.confirm(`Are you sure you want to unlock Game of Go for ${selectedUsers.size} selected user(s)?`)) {
-                          try {
-                            setLoading(true);
-                            await api.post('/admin/bulk-game-unlock', {
-                              userIds: Array.from(selectedUsers),
-                              gameType: 'go',
-                              unlock: true,
-                            });
-                            setSelectedUsers(new Set());
-                            await fetchGameAccess();
-                            setError('');
-                          } catch (err) {
-                            setError(err.response?.data?.message || 'Failed to unlock games');
-                          } finally {
-                            setLoading(false);
-                          }
-                        }
-                      }}
-                      disabled={loading}
-                      className="px-4 py-2 rounded-lg bg-green-500/20 text-green-400 border border-green-500/50 hover:bg-green-500/30 transition font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      🔓 Unlock Go ({selectedUsers.size})
-                    </button>
-                    <button
-                      onClick={async () => {
-                        if (window.confirm(`Are you sure you want to lock Game of Go for ${selectedUsers.size} selected user(s)?`)) {
-                          try {
-                            setLoading(true);
-                            await api.post('/admin/bulk-game-unlock', {
-                              userIds: Array.from(selectedUsers),
-                              gameType: 'go',
-                              unlock: false,
-                            });
-                            setSelectedUsers(new Set());
-                            await fetchGameAccess();
-                            setError('');
-                          } catch (err) {
-                            setError(err.response?.data?.message || 'Failed to lock games');
-                          } finally {
-                            setLoading(false);
-                          }
-                        }
-                      }}
-                      disabled={loading}
-                      className="px-4 py-2 rounded-lg bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30 transition font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      🔒 Lock Go ({selectedUsers.size})
-                    </button>
-                  </>
-                )}
                 {(gameAccessSelectedGroup !== 'all' || gameAccessSelectedClassroom !== 'all' || gameAccessSelectedTeam !== 'all' || gameAccessSearchQuery) && (
                   <>
                     <button
@@ -849,21 +844,6 @@ const AdminDashboard = () => {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-white/10">
-                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wide text-white/50">
-                    <input
-                      type="checkbox"
-                      checked={gameAccessList.length > 0 && gameAccessList.every(item => selectedUsers.has(item._id))}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          const allIds = new Set(gameAccessList.map(item => item._id).filter(Boolean));
-                          setSelectedUsers(allIds);
-                        } else {
-                          setSelectedUsers(new Set());
-                        }
-                      }}
-                      className="rounded border-white/20 cursor-pointer"
-                    />
-                  </th>
                   <th className="px-4 py-3 text-left text-xs uppercase tracking-wide text-white/50">Rank</th>
                   <th className="px-4 py-3 text-left text-xs uppercase tracking-wide text-white/50">Name</th>
                   <th className="px-4 py-3 text-left text-xs uppercase tracking-wide text-white/50">Email</th>
@@ -877,25 +857,6 @@ const AdminDashboard = () => {
               <tbody>
                 {gameAccessList.map((item) => (
                   <tr key={item.email || item._id} className="border-b border-white/5 hover:bg-white/5">
-                    <td className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        checked={item._id && selectedUsers.has(item._id)}
-                        onChange={(e) => {
-                          if (item._id) {
-                            const newSelected = new Set(selectedUsers);
-                            if (e.target.checked) {
-                              newSelected.add(item._id);
-                            } else {
-                              newSelected.delete(item._id);
-                            }
-                            setSelectedUsers(newSelected);
-                          }
-                        }}
-                        disabled={!item._id}
-                        className="rounded border-white/20 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-                      />
-                    </td>
                     <td className="px-4 py-3 text-white font-semibold">{item.rank || '-'}</td>
                     <td className="px-4 py-3 text-white">
                       {item.displayName || item.firstName || item.username || item.email || 'Unknown'}
@@ -908,51 +869,43 @@ const AdminDashboard = () => {
                     <td className="px-4 py-3 text-white/70">{item.classroomNumber || '-'}</td>
                     <td className="px-4 py-3 text-white/70">{item.teamNumber || '-'}</td>
                     <td className="px-4 py-3 text-center">
-                      {item._id ? (
+                      <button
+                        onClick={() => toggleGameUnlock(item._id, 'go', item.goUnlocked, item.email)}
+                        disabled={loading}
+                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
+                          item.goUnlocked
+                            ? 'bg-green-500/20 text-green-400 border border-green-500/50 hover:bg-green-500/30'
+                            : 'bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      >
+                        {loading ? '...' : (item.goUnlocked ? '🔓 Unlocked' : '🔒 Locked')}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex flex-col gap-2 items-center">
                         <button
-                          onClick={() => toggleGameUnlock(item._id, 'go', item.goUnlocked)}
+                          onClick={() => toggleGameUnlock(item._id, 'rps', item.rpsUnlocked, item.email)}
                           disabled={loading}
-                          className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
-                            item.goUnlocked
+                          className={`px-3 py-1 rounded-lg text-xs font-semibold transition w-full ${
+                            item.rpsUnlocked
                               ? 'bg-green-500/20 text-green-400 border border-green-500/50 hover:bg-green-500/30'
                               : 'bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30'
                           } disabled:opacity-50 disabled:cursor-not-allowed`}
                         >
-                          {item.goUnlocked ? '🔓 Unlocked' : '🔒 Locked'}
+                          RPS: {loading ? '...' : (item.rpsUnlocked ? '🔓' : '🔒')}
                         </button>
-                      ) : (
-                        <span className="text-white/40 text-xs">N/A</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {item._id ? (
-                        <div className="flex flex-col gap-2 items-center">
-                          <button
-                            onClick={() => toggleGameUnlock(item._id, 'rps', item.rpsUnlocked)}
-                            disabled={loading}
-                            className={`px-3 py-1 rounded-lg text-xs font-semibold transition w-full ${
-                              item.rpsUnlocked
-                                ? 'bg-green-500/20 text-green-400 border border-green-500/50 hover:bg-green-500/30'
-                                : 'bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30'
-                            } disabled:opacity-50 disabled:cursor-not-allowed`}
-                          >
-                            RPS: {item.rpsUnlocked ? '🔓' : '🔒'}
-                          </button>
-                          <button
-                            onClick={() => toggleGameUnlock(item._id, 'pennies', item.penniesUnlocked)}
-                            disabled={loading}
-                            className={`px-3 py-1 rounded-lg text-xs font-semibold transition w-full ${
-                              item.penniesUnlocked
-                                ? 'bg-green-500/20 text-green-400 border border-green-500/50 hover:bg-green-500/30'
-                                : 'bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30'
-                            } disabled:opacity-50 disabled:cursor-not-allowed`}
-                          >
-                            Pennies: {item.penniesUnlocked ? '🔓' : '🔒'}
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-white/40 text-xs">N/A</span>
-                      )}
+                        <button
+                          onClick={() => toggleGameUnlock(item._id, 'pennies', item.penniesUnlocked, item.email)}
+                          disabled={loading}
+                          className={`px-3 py-1 rounded-lg text-xs font-semibold transition w-full ${
+                            item.penniesUnlocked
+                              ? 'bg-green-500/20 text-green-400 border border-green-500/50 hover:bg-green-500/30'
+                              : 'bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30'
+                          } disabled:opacity-50 disabled:cursor-not-allowed`}
+                        >
+                          Pennies: {loading ? '...' : (item.penniesUnlocked ? '🔓' : '🔒')}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
