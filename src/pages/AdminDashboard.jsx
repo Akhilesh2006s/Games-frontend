@@ -608,6 +608,7 @@ const AdminDashboard = () => {
     return filtered.map((player, index) => ({
       ...player,
       rank: index + 1,
+      displayName: player.displayName || player.firstName || player.username || player.email || 'Unknown',
     }));
   }, [leaderboard, selectedGroup, selectedClassroom, selectedTeam, searchQuery, viewMode]);
 
@@ -891,17 +892,23 @@ const AdminDashboard = () => {
                             setSelectedUsers(newSelected);
                           }
                         }}
-                        className="rounded border-white/20 cursor-pointer"
+                        disabled={!item._id}
+                        className="rounded border-white/20 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                       />
                     </td>
                     <td className="px-4 py-3 text-white font-semibold">{item.rank || '-'}</td>
-                    <td className="px-4 py-3 text-white">{item.displayName || item.firstName || item.username}</td>
+                    <td className="px-4 py-3 text-white">
+                      {item.displayName || item.firstName || item.username || item.email || 'Unknown'}
+                      {!item._id && (
+                        <span className="ml-2 text-xs text-white/50">(Not logged in)</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-white/70">{item.email || '-'}</td>
                     <td className="px-4 py-3 text-white/70">{item.groupId || '-'}</td>
                     <td className="px-4 py-3 text-white/70">{item.classroomNumber || '-'}</td>
                     <td className="px-4 py-3 text-white/70">{item.teamNumber || '-'}</td>
                     <td className="px-4 py-3 text-center">
-                      {item._id && (
+                      {item._id ? (
                         <button
                           onClick={() => toggleGameUnlock(item._id, 'go', item.goUnlocked)}
                           disabled={loading}
@@ -913,10 +920,12 @@ const AdminDashboard = () => {
                         >
                           {item.goUnlocked ? '🔓 Unlocked' : '🔒 Locked'}
                         </button>
+                      ) : (
+                        <span className="text-white/40 text-xs">N/A</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      {item._id && (
+                      {item._id ? (
                         <div className="flex flex-col gap-2 items-center">
                           <button
                             onClick={() => toggleGameUnlock(item._id, 'rps', item.rpsUnlocked)}
@@ -941,6 +950,8 @@ const AdminDashboard = () => {
                             Pennies: {item.penniesUnlocked ? '🔓' : '🔒'}
                           </button>
                         </div>
+                      ) : (
+                        <span className="text-white/40 text-xs">N/A</span>
                       )}
                     </td>
                   </tr>
@@ -1020,42 +1031,74 @@ const AdminDashboard = () => {
           <div className="glass-panel overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-white/10">
-                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wide text-white/50">Rank</th>
-                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wide text-white/50">Name</th>
-                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wide text-white/50">Group</th>
-                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wide text-white/50">Classroom</th>
-                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wide text-white/50">Team</th>
-                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wide text-white/50">Wins</th>
-                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wide text-white/50">Points</th>
-                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wide text-white/50">Actions</th>
+                <tr className="border-b border-white/10 bg-white/5">
+                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-white">Rank</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-white">Player</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-white">Group</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-white">Classroom</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-white">Team</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-white">Wins</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-white">Points</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-white">Actions</th>
                 </tr>
               </thead>
-              <tbody>
-                {processedData.map((item) => (
-                  <tr key={item.email || item.displayName} className="border-b border-white/5 hover:bg-white/5">
-                    <td className="px-4 py-3 text-white">{item.rank}</td>
-                    <td className="px-4 py-3 text-white">{item.displayName || item.firstName || item.username}</td>
-                    <td className="px-4 py-3 text-white/70">{item.groupId || '-'}</td>
-                    <td className="px-4 py-3 text-white/70">{item.classroomNumber || '-'}</td>
-                    <td className="px-4 py-3 text-white/70">{item.teamNumber || '-'}</td>
-                    <td className="px-4 py-3 text-white">{item.stats?.wins || 0}</td>
-                    <td className="px-4 py-3 text-white">{item.stats?.totalPoints || 0}</td>
-                    <td className="px-4 py-3">
-                      {item.email && (
-                        <button
-                          onClick={() => {
-                            setActiveTab('student');
-                            fetchStudentStats(item.email);
-                          }}
-                          className="text-aurora hover:text-aurora/70 text-sm"
-                        >
-                          View Stats
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+              <tbody className="divide-y divide-white/5">
+                {processedData.map((item) => {
+                  const getMedalEmoji = (rank) => {
+                    if (rank === 1) return '🥇';
+                    if (rank === 2) return '🥈';
+                    if (rank === 3) return '🥉';
+                    return null;
+                  };
+                  const medal = getMedalEmoji(item.rank);
+                  const playerName = item.displayName || item.firstName || item.username || item.email || 'Unknown';
+                  
+                  return (
+                    <tr 
+                      key={item.email || item.displayName} 
+                      className="hover:bg-white/5 transition"
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          {medal ? (
+                            <span className="text-2xl">{medal}</span>
+                          ) : (
+                            <span className="text-lg font-bold text-white/60">#{item.rank}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div>
+                          <p className="font-semibold text-white">{playerName}</p>
+                          <p className="text-sm text-white/50">{item.email || '-'}</p>
+                          {!item._id && (
+                            <span className="text-xs text-white/40">(Not logged in)</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-white/70">{item.groupId || '-'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-white/70">{item.classroomNumber || '-'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-white/70">{item.teamNumber || '-'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-white">{item.stats?.wins || 0}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-white">{item.stats?.totalPoints || 0}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {item.email && item._id ? (
+                          <button
+                            onClick={() => {
+                              setActiveTab('student');
+                              fetchStudentStats(item.email);
+                            }}
+                            className="text-aurora hover:text-aurora/70 text-sm font-semibold"
+                          >
+                            View Stats
+                          </button>
+                        ) : (
+                          <span className="text-white/40 text-sm">No stats available</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
