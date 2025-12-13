@@ -18,6 +18,24 @@ const ArenaPage = () => {
   const navigate = useNavigate();
   const [showStats, setShowStats] = useState(false);
   const [activeTab, setActiveTab] = useState('arena'); // 'arena' or 'online'
+  
+  // Get greeting based on timezone
+  const getGreeting = () => {
+    const now = new Date();
+    const hour = now.getHours();
+    
+    if (hour >= 5 && hour < 12) {
+      return 'Good morning';
+    } else if (hour >= 12 && hour < 17) {
+      return 'Good afternoon';
+    } else if (hour >= 17 && hour < 22) {
+      return 'Good evening';
+    } else {
+      return 'Good evening'; // Late night also uses evening
+    }
+  };
+  
+  const playerName = user?.studentName || user?.username || 'Player';
   const [goConfig, setGoConfig] = useState({
     boardSize: 9,
     timeControl: {
@@ -409,6 +427,13 @@ const ArenaPage = () => {
             <OnlinePlayers onJoinGame={() => setActiveTab('arena')} />
           ) : (
             <>
+              {/* Greeting with Player Name */}
+              <div className="mb-4 text-center">
+                <p className="text-xl font-semibold text-white/90">
+                  {getGreeting()}, <span className="text-aurora font-bold">{playerName}</span>
+                </p>
+              </div>
+              
               {/* Quick Join Option - Above game selection */}
               {!currentGame?.code && !currentGame?.activeStage && (
                 <div className="mb-6 glass-panel p-4 border border-aurora/30">
