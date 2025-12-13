@@ -1,79 +1,84 @@
 import { io } from 'socket.io-client';
 import { socketBaseUrl } from './api';
-import useAuthStore from '../store/useAuthStore';
 
 let socketInstance = null;
-let connectionCount = 0;
+let usageCount = 0;
 let currentToken = null;
 
+/**
+ * Get or create a socket instance
+ * @param {string} token - Authentication token
+ * @returns {Socket|null} Socket instance or null if token is missing
+ */
 export const getSocket = (token) => {
-  // If token changed, disconnect old socket
-  if (socketInstance && currentToken !== token) {
-    socketInstance.disconnect();
-    socketInstance = null;
-    connectionCount = 0;
-  }
-
-  // If no token, return null
   if (!token) {
     return null;
   }
 
-  // If socket exists and is connected, return it
-  if (socketInstance && socketInstance.connected) {
-    currentToken = token;
+  // If socket exists and token matches, increment usage and return
+  if (socketInstance && currentToken === token && socketInstance.connected) {
+    usageCount++;
     return socketInstance;
   }
 
-  // Create new socket if needed
-  if (!socketInstance) {
-    socketInstance = io(socketBaseUrl, {
-      transports: ['websocket', 'polling'],
-      upgrade: true,
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5,
-      auth: { token },
-    });
-
-    socketInstance.on('connect', () => {
-      console.log('Socket connected');
-    });
-
-    socketInstance.on('disconnect', (reason) => {
-      console.log('Socket disconnected:', reason);
-    });
-
-    socketInstance.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
-    });
-
-    currentToken = token;
-  }
-
-  connectionCount++;
-  return socketInstance;
-};
-
-export const releaseSocket = () => {
-  connectionCount--;
-  // Only disconnect if no components are using it
-  if (connectionCount <= 0 && socketInstance) {
-    connectionCount = 0;
-    socketInstance.disconnect();
-    socketInstance = null;
-    currentToken = null;
-  }
-};
-
-export const disconnectSocket = () => {
+  // If socket exists but token changed or disconnected, clean up first
   if (socketInstance) {
     socketInstance.disconnect();
     socketInstance = null;
-    connectionCount = 0;
+    usageCount = 0;
+  }
+
+  // Create new socket instance
+  currentToken = token;
+  socketInstance = io(socketBaseUrl, {
+    auth: {
+      token,
+    },
+    transports: ['websocket', 'polling'],
+    reconnection: true,
+    reconnectionDelay: 1000,
+    reconnectionAttempts: 5,
+  });
+
+  usageCount = 1;
+
+  // Handle connection errors
+  socketInstance.on('connect_error', (error) => {
+    console.error('Socket connection error:', error);
+  });
+
+  return socketInstance;
+};
+
+/**
+ * Release the socket instance (decrement usage count)
+ * Only disconnects if no components are using it
+ */
+export const releaseSocket = () => {
+  if (!socketInstance) {
+    return;
+  }
+
+  usageCount--;
+
+  // Only disconnect if no components are using the socket
+  if (usageCount <= 0) {
+    socketInstance.disconnect();
+    socketInstance = null;
     currentToken = null;
+    usageCount = 0;
   }
 };
 
+/**
+ * Force disconnect the socket (for logout, etc.)
+ */
+export const forceDisconnect = () => {
+  if (socketInstance) {
+    socketInstance.disconnect();
+    socketInstance = null;
+    currentToken = null;
+    usageCount = 0;
+  }
+};
 

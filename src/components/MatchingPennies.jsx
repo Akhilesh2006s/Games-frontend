@@ -79,6 +79,27 @@ const MatchingPennies = () => {
     }
   }, [currentGame?.penniesRoundNumber]);
 
+  const yourChoiceDisplay = useMemo(() => {
+    if (result) {
+      const resolvedChoice = isHost ? result.hostChoice : result.guestChoice;
+      return resolvedChoice === 'heads' ? '👑' : resolvedChoice === 'tails' ? '🦅' : '⏳';
+    }
+    if (lockedChoice) {
+      return lockedChoice === 'heads' ? '👑' : '🦅';
+    }
+    return '⏳';
+  }, [isHost, lockedChoice, result]);
+
+  const opponentChoiceDisplay = useMemo(() => {
+    if (result) {
+      const rivalChoice = isHost ? result.guestChoice : result.hostChoice;
+      return rivalChoice === 'heads' ? '👑' : rivalChoice === 'tails' ? '🦅' : '⏳';
+    }
+    if (opponentLock) return '🔒';
+    if (!currentGame?.guest) return '⏳';
+    return '⏳';
+  }, [currentGame?.guest, isHost, opponentLock, result]);
+
   useEffect(() => {
     if (currentGame) {
       setScores({
@@ -163,12 +184,16 @@ const MatchingPennies = () => {
         // Don't refresh game details immediately to prevent clearing the result
         return; // Exit early to prevent refreshGameDetails() call
       } else {
-        const winnerText = payload.hostWon
-          ? `Both chose the same. ${currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} wins!`
-          : `Different choices. ${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'} wins!`;
-        setStatusMessage(
-          `Round complete. Score: ${currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} ${payload.hostScore} - ${payload.guestScore} ${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}`
-        );
+        // Determine if current user won
+        let winMessage = '';
+        if (payload.hostWon) {
+          // Host wins when both choose the same
+          winMessage = isHost ? 'You won!' : 'You lose!';
+        } else {
+          // Guest wins when choices are different
+          winMessage = isHost ? 'You lose!' : 'You won!';
+        }
+        setStatusMessage(winMessage);
         // Clear result after 3 seconds to allow players to see the result, or when a new move is played
         const resultTimeout = setTimeout(() => {
           // Only clear if no new result has been set (check if result is still the same)
@@ -338,7 +363,7 @@ const MatchingPennies = () => {
         setCurrentGame(payload.game);
       }
       const disconnectedPlayerName = payload.disconnectedPlayerName || 'Opponent';
-      setStatusMessage(payload.message || 'Opponent has left the game. You win by forfeit.');
+      setStatusMessage(`${disconnectedPlayerName} has left the game and cannot return. You win by forfeit!`);
       // Show disconnect modal
       setDisconnectModal({ isOpen: true, playerName: disconnectedPlayerName });
       // Set result to show game complete
@@ -447,8 +472,7 @@ const MatchingPennies = () => {
           </div>
         </div>
         <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center">
-          <p className="text-xs uppercase tracking-[0.4em] text-white/50">Round {roundNumber + 1}</p>
-          <p className="text-sm text-white/70 mt-1">
+          <p className="text-base font-semibold text-white/90">
             🎯 Both Players Choose
           </p>
           <p className="text-base font-semibold text-white/90 mt-2">{roleDescription}</p>
@@ -463,7 +487,7 @@ const MatchingPennies = () => {
           <div className="flex-1 rounded-2xl border border-white/5 bg-night/20 p-4 text-center">
             <p className="text-xs uppercase tracking-[0.4em] text-white/50">You</p>
             <p className={`text-6xl ${lockedChoice ? '' : 'animate-pulse'}`}>
-              {lockedChoice === 'heads' ? '👑' : lockedChoice === 'tails' ? '🦅' : '⏳'}
+              {yourChoiceDisplay}
             </p>
             <p className="text-white/60">
               {lockedChoice ? `Locked ${lockedChoice.toUpperCase()}` : 'Choose heads or tails'}
@@ -485,8 +509,8 @@ const MatchingPennies = () => {
             <p className="text-xs uppercase tracking-[0.4em] text-white/50 mb-1">
               {isHost ? (currentGame.guest?.studentName || currentGame.guest?.username || 'Challenger') : (currentGame.host?.studentName || currentGame.host?.username || 'Host')}
             </p>
-            <p className={`text-6xl  ${opponentLock ? '' : 'animate-pulse'}`}>
-              {opponentLock ? '⏳' : '⏳'}
+            <p className={`text-6xl  ${opponentLock || result ? '' : 'animate-pulse'}`}>
+              {opponentChoiceDisplay}
             </p>
             <p className="text-white/60">
               {opponentLock || (currentGame?.guest ? 'Waiting for lock' : 'Opponent pending')}
@@ -646,13 +670,13 @@ const MatchingPennies = () => {
                 </div>
               </div>
 
-              {/* Score Display */}
+              {/* Win/Lose Message */}
               <div className="mt-6 pt-6 border-t-2 border-blue-400/30 text-center">
                 <p className="text-base font-semibold text-white">
-                  Score: <span className="font-bold text-white">{currentGame?.host?.studentName || currentGame?.host?.username || 'Host'}</span>{' '}
-                  <span className="text-blue-200 font-bold text-xl">{result.hostScore}</span> -{' '}
-                  <span className="text-blue-200 font-bold text-xl">{result.guestScore}</span>{' '}
-                  <span className="font-bold text-white">{currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}</span>
+                  {result.hostWon 
+                    ? (isHost ? <span className="text-green-300 font-bold text-xl">You won!</span> : <span className="text-red-300 font-bold text-xl">You lose!</span>)
+                    : (isHost ? <span className="text-red-300 font-bold text-xl">You lose!</span> : <span className="text-green-300 font-bold text-xl">You won!</span>)
+                  }
                 </p>
               </div>
             </div>

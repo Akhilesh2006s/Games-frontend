@@ -192,7 +192,7 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
       </div>
 
       {/* Game Cards Grid - Always 3 columns */}
-      <div className="relative grid gap-6 grid-cols-1 md:grid-cols-3">
+      <div className="relative grid gap-6 grid-cols-1 md:grid-cols-3 items-stretch">
         {games
           .filter(game => !selectedGameType || game.id === selectedGameType) // Only show selected game if specified
           .map((game) => {
@@ -207,10 +207,10 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
               key={game.id}
               onMouseEnter={() => setHoveredGame(game.id)}
               onMouseLeave={() => setHoveredGame(null)}
-              className="group relative"
+              className="group relative flex flex-col h-full"
             >
               <div
-                className={`relative h-full w-full overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-300 ${
+                className={`relative h-full w-full overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-300 flex flex-col ${
                   isActive
                     ? 'border-aurora bg-gradient-to-br from-aurora/20 via-aurora/10 to-transparent shadow-[0_0_30px_rgba(83,255,227,0.3)]'
                     : isLocked
@@ -251,6 +251,18 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
 
                 {/* Description */}
                 <p className="mb-4 text-sm leading-relaxed text-white/70">{game.description}</p>
+
+                {/* Features */}
+                <div className="flex flex-wrap items-center gap-3 mb-4">
+                  {game.features.map((feature, idx) => (
+                    <span
+                      key={idx}
+                      className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60 backdrop-blur-sm"
+                    >
+                      {feature}
+                    </span>
+                  ))}
+                </div>
 
                 {/* Game-specific options - Board Size Selector */}
                 {game.hasOptions && currentGame?.activeStage !== 'GAME_OF_GO' && !isLocked && (
@@ -552,47 +564,39 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
                         </div>
                       )}
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (!isDisabledForLock) {
-                          const currentSize = goBoardSizeRef.current;
-                          console.log('Start button clicked - Current goBoardSize state:', goBoardSize, 'Ref:', currentSize);
-                          handleStartGame(game.id, currentSize);
-                        }
-                      }}
-                      disabled={isDisabledForLock}
-                      className="mt-4 w-full rounded-lg bg-gradient-to-r from-aurora/20 to-royal/20 border border-aurora/50 px-4 py-2.5 text-sm font-bold text-white transition-all hover:from-aurora/30 hover:to-royal/30 hover:shadow-[0_0_15px_rgba(83,255,227,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isLocked ? '🔒 Locked - Contact Admin' : `Start Game (${goBoardSize}×${goBoardSize})`}
-                    </button>
                   </div>
                 )}
 
-                {/* Features */}
-                <div className="flex flex-wrap items-center gap-3 mb-4">
-                  {game.features.map((feature, idx) => (
-                    <span
-                      key={idx}
-                      className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60 backdrop-blur-sm"
-                    >
-                      {feature}
-                    </span>
-                  ))}
-                </div>
-
                 {/* Time Control for RPS and Matching Pennies - Fixed at 15 seconds */}
                 {!game.hasOptions && (
-                  <div className="mt-4">
+                  <div className="mb-4">
                     <p className="text-xs text-white/50">
                       Players have 20 seconds per move
                     </p>
                   </div>
                 )}
 
-                {/* Start Game Button for games without options (RPS and Matching Pennies) */}
-                {!game.hasOptions && (
+                {/* Spacer to push button to bottom */}
+                <div className="flex-grow"></div>
+
+                {/* Action Buttons - Always rendered at the same position */}
+                {game.hasOptions && currentGame?.activeStage !== 'GAME_OF_GO' && !isLocked ? (
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (!isDisabledForLock) {
+                        const currentSize = goBoardSizeRef.current;
+                        console.log('Start button clicked - Current goBoardSize state:', goBoardSize, 'Ref:', currentSize);
+                        handleStartGame(game.id, currentSize);
+                      }
+                    }}
+                    disabled={isDisabledForLock}
+                    className="w-full rounded-lg bg-gradient-to-r from-aurora/20 to-royal/20 border border-aurora/50 px-4 py-2.5 text-sm font-bold text-white transition-all hover:from-aurora/30 hover:to-royal/30 hover:shadow-[0_0_15px_rgba(83,255,227,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLocked ? '🔒 Locked - Contact Admin' : `Configure & Create`}
+                  </button>
+                ) : !game.hasOptions ? (
                   <button
                     onClick={(e) => {
                       e.preventDefault();
@@ -602,9 +606,16 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
                       }
                     }}
                     disabled={isDisabledForLock}
-                    className="mt-4 w-full rounded-lg bg-gradient-to-r from-aurora/20 to-royal/20 border border-aurora/50 px-4 py-2.5 text-sm font-bold text-white transition-all hover:from-aurora/30 hover:to-royal/30 hover:shadow-[0_0_15px_rgba(83,255,227,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full rounded-lg bg-gradient-to-r from-aurora/20 to-royal/20 border border-aurora/50 px-4 py-2.5 text-sm font-bold text-white transition-all hover:from-aurora/30 hover:to-royal/30 hover:shadow-[0_0_15px_rgba(83,255,227,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isLocked ? '🔒 Locked - Contact Admin' : 'Start Game'}
+                    {isLocked ? '🔒 Locked - Contact Admin' : 'Select Game'}
+                  </button>
+                ) : (
+                  <button
+                    disabled={true}
+                    className="w-full rounded-lg bg-gradient-to-r from-aurora/20 to-royal/20 border border-aurora/50 px-4 py-2.5 text-sm font-bold text-white opacity-50 cursor-not-allowed"
+                  >
+                    🔒 Locked - Contact Admin
                   </button>
                 )}
 

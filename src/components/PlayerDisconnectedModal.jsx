@@ -20,12 +20,15 @@ const PlayerDisconnectedModal = ({ isOpen, playerName, onClose }) => {
       <div className="glass-panel border-2 border-red-500/70 bg-gradient-to-br from-red-600/30 via-red-500/25 to-red-600/30 p-8 max-w-md w-full mx-4 text-white shadow-lg shadow-red-500/30 transform transition-transform duration-300 scale-100">
         <div className="text-center">
           <div className="text-6xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold mb-2 text-red-300">Player Disconnected</h2>
-          <p className="text-white/90 mb-6 text-lg">
-            <span className="font-semibold text-red-200">{playerName || 'Opponent'}</span> has left the game.
+          <h2 className="text-2xl font-bold mb-2 text-red-300">Opponent Left the Game</h2>
+          <p className="text-white/90 mb-4 text-lg">
+            <span className="font-semibold text-red-200">{playerName || 'Opponent'}</span> has disconnected and left the game.
           </p>
-          <p className="text-white/70 mb-6">
-            You win by forfeit!
+          <p className="text-yellow-300 mb-4 font-semibold text-base">
+            ⚠️ They cannot return to this game.
+          </p>
+          <p className="text-green-300 mb-6 font-bold text-lg">
+            🏆 You win by forfeit!
           </p>
           <button
             onClick={onClose}

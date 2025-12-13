@@ -446,7 +446,7 @@ const GameOfGo = () => {
         setCurrentGame(payload.game);
       }
       const disconnectedPlayerName = payload.disconnectedPlayerName || 'Opponent';
-      setStatusMessage(payload.message || 'Opponent has left the game. You win by forfeit.');
+      setStatusMessage(`${disconnectedPlayerName} has left the game and cannot return. You win by forfeit!`);
       // Show disconnect modal
       setDisconnectModal({ isOpen: true, playerName: disconnectedPlayerName });
       // Set game phase to complete
@@ -459,7 +459,7 @@ const GameOfGo = () => {
         setFinalScore({
           winner: winnerColor,
           reason: 'disconnect',
-          message: payload.message || 'Opponent disconnected. You win by forfeit.',
+          message: `${disconnectedPlayerName} disconnected and cannot return. You win by forfeit.`,
         });
       }
       refreshGameDetails();

@@ -211,11 +211,15 @@ const RockPaperScissors = () => {
         // refreshGameDetails will be called by other handlers if needed
         return; // Exit early to prevent refreshGameDetails() call
       } else {
-        setStatusMessage(
-          payload.result === 'draw'
-            ? 'Draw registered. Replay to continue.'
-            : `Round complete. Score: ${currentGame?.host?.studentName || currentGame?.host?.username || 'Host'} ${payload.hostScore} - ${payload.guestScore} ${currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}`
-        );
+        // Determine if current user won
+        let winMessage = '';
+        if (payload.result === 'draw') {
+          winMessage = 'Draw registered. Replay to continue.';
+        } else {
+          const userWon = (isHost && payload.result === 'host') || (!isHost && payload.result === 'guest');
+          winMessage = userWon ? 'You won!' : 'You lose!';
+        }
+        setStatusMessage(winMessage);
         // Clear result after 3 seconds to allow players to see the result, or when a new move is played
         const resultTimeout = setTimeout(() => {
           // Only clear if no new result has been set (check if result is still the same)
@@ -377,7 +381,7 @@ const RockPaperScissors = () => {
         setCurrentGame(payload.game);
       }
       const disconnectedPlayerName = payload.disconnectedPlayerName || 'Opponent';
-      setStatusMessage(payload.message || 'Opponent has left the game. You win by forfeit.');
+      setStatusMessage(`${disconnectedPlayerName} has left the game and cannot return. You win by forfeit!`);
       // Show disconnect modal
       setDisconnectModal({ isOpen: true, playerName: disconnectedPlayerName });
       // Set result to show game complete
@@ -697,14 +701,18 @@ const RockPaperScissors = () => {
                 </div>
               </div>
 
-              {/* Score Display */}
+              {/* Win/Lose Message */}
               <div className="mt-6 pt-6 border-t-2 border-blue-400/30 text-center">
-                <p className="text-base font-semibold text-white">
-                  Score: <span className="font-bold text-white">{currentGame?.host?.studentName || currentGame?.host?.username || 'Host'}</span>{' '}
-                  <span className="text-blue-200 font-bold text-xl">{result.hostScore}</span> -{' '}
-                  <span className="text-blue-200 font-bold text-xl">{result.guestScore}</span>{' '}
-                  <span className="font-bold text-white">{currentGame?.guest?.studentName || currentGame?.guest?.username || 'Guest'}</span>
-                </p>
+                {result.result === 'draw' ? (
+                  <p className="text-base font-semibold text-yellow-300">It's a draw!</p>
+                ) : (
+                  <p className="text-base font-semibold text-white">
+                    {(isHost && result.result === 'host') || (!isHost && result.result === 'guest') 
+                      ? <span className="text-green-300 font-bold text-xl">You won!</span>
+                      : <span className="text-red-300 font-bold text-xl">You lose!</span>
+                    }
+                  </p>
+                )}
               </div>
             </div>
           )}
