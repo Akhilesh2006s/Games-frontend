@@ -122,7 +122,7 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
       stage: '1',
       title: 'Rock • Paper • Scissors',
       description: isRpsUnlocked 
-        ? 'Classic hand game. Choose rock, paper, or scissors. Both players play the match for a total of 30 rounds. for you!'
+        ? 'Classic hand game. Choose rock, paper, or scissors. Both players play the match for a total of 30 rounds.'
         : '🔒 Locked - Contact an admin to unlock this game.',
       icon: '✊',
       gradient: 'from-pulse/20 via-royal/20 to-aurora/20',
@@ -264,8 +264,6 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
                   ))}
                 </div>
 
-                {/* Content area that can grow - wraps all variable content */}
-                <div className="flex-1 flex flex-col min-h-0">
                 {/* Game-specific options - Board Size Selector */}
                 {game.hasOptions && currentGame?.activeStage !== 'GAME_OF_GO' && !isLocked && (
                   <div className="mb-4">
@@ -577,10 +575,11 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
                     </p>
                   </div>
                 )}
-                </div>
 
-                {/* Action Buttons - Always at the bottom, aligned across all cards */}
-                <div className="mt-auto pt-4 flex-shrink-0">
+                {/* Spacer to push button to bottom */}
+                <div className="flex-grow"></div>
+
+                {/* Action Buttons - Always rendered at the same position */}
                 {game.hasOptions && currentGame?.activeStage !== 'GAME_OF_GO' && !isLocked ? (
                   <button
                     onClick={(e) => {
@@ -619,7 +618,6 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
                     🔒 Locked - Contact Admin
                   </button>
                 )}
-                </div>
 
                 {/* Hover effect overlay */}
                 {!isActive && isHovered && !game.hasOptions && (
