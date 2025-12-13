@@ -210,7 +210,7 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
               className="group relative flex flex-col h-full"
             >
               <div
-                className={`relative h-full w-full overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-300 flex flex-col ${
+                className={`relative h-full w-full overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-300 flex flex-col justify-between ${
                   isActive
                     ? 'border-aurora bg-gradient-to-br from-aurora/20 via-aurora/10 to-transparent shadow-[0_0_30px_rgba(83,255,227,0.3)]'
                     : isLocked
@@ -576,10 +576,8 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
                   </div>
                 )}
 
-                {/* Spacer to push button to bottom */}
-                <div className="flex-grow"></div>
-
-                {/* Action Buttons - Always rendered at the same position */}
+                {/* Action Buttons - Always rendered at the same position at bottom */}
+                <div className="mt-auto">
                 {game.hasOptions && currentGame?.activeStage !== 'GAME_OF_GO' && !isLocked ? (
                   <button
                     onClick={(e) => {
@@ -618,6 +616,7 @@ const GameSelector = ({ currentGame, onGameSelected, selectedGameType, onGameSta
                     🔒 Locked - Contact Admin
                   </button>
                 )}
+                </div>
 
                 {/* Hover effect overlay */}
                 {!isActive && isHovered && !game.hasOptions && (
