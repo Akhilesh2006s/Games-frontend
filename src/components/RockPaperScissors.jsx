@@ -305,7 +305,7 @@ const RockPaperScissors = () => {
     };
     socket.on('rpsTimerUpdate', handleTimerUpdate);
 
-    // Handle game ended (from resign)
+    // Handle game ended (from resign/exit)
     const handleGameEnded = (payload) => {
       if (payload.game) {
         setCurrentGame(payload.game);
@@ -314,11 +314,20 @@ const RockPaperScissors = () => {
           : payload.winner === 'guest'
             ? (payload.game.guest?.studentName || payload.game.guest?.username || 'Guest')
             : null;
-        if (winnerName) {
+        
+        // If this is a forfeit, show the disconnect modal
+        if (payload.reason === 'forfeit') {
+          const loserName = payload.winner === 'host'
+            ? (payload.game.guest?.studentName || payload.game.guest?.username || 'Opponent')
+            : (payload.game.host?.studentName || payload.game.host?.username || 'Opponent');
+          setDisconnectModal({ isOpen: true, playerName: loserName });
+          setStatusMessage(`${loserName} has left the game. You win by forfeit!`);
+        } else if (winnerName) {
           setStatusMessage(`${winnerName} wins! ${payload.winner === 'host' ? payload.game.hostScore : payload.game.guestScore} - ${payload.winner === 'host' ? payload.game.guestScore : payload.game.hostScore}`);
         } else {
           setStatusMessage('Game ended in a draw!');
         }
+        
         // Set final result for display
         setResult({
           isGameComplete: true,
@@ -330,6 +339,7 @@ const RockPaperScissors = () => {
           host: payload.game.hostScore || 0,
           guest: payload.game.guestScore || 0,
         });
+        setRoundsPlayed(30); // Mark as complete
       }
     };
 
@@ -382,7 +392,7 @@ const RockPaperScissors = () => {
       setStatusMessage(`⚠️ ${disconnectedPlayerName} has left the game and cannot return.`);
     };
 
-    // Handle game ending due to disconnect
+    // Handle game ending due to disconnect (socket disconnect)
     const handlePlayerDisconnected = (payload) => {
       if (payload.game) {
         setCurrentGame(payload.game);
@@ -391,10 +401,11 @@ const RockPaperScissors = () => {
       setStatusMessage(`${disconnectedPlayerName} has left the game and cannot return. You win by forfeit!`);
       // Show disconnect modal
       setDisconnectModal({ isOpen: true, playerName: disconnectedPlayerName });
-      // Set result to show game complete
+      // Set result to show game complete - use payload.winner (from server) or payload.remainingPlayer (from socket)
+      const winner = payload.winner || payload.remainingPlayer;
       setResult({
         isGameComplete: true,
-        winner: payload.remainingPlayer,
+        winner: winner,
         hostScore: payload.game?.hostScore || 0,
         guestScore: payload.game?.guestScore || 0,
       });
@@ -410,7 +421,6 @@ const RockPaperScissors = () => {
     socket.on('rematch:rejected', handleRematchRejected);
     socket.on('game:player_left', handlePlayerLeft); // Immediate notification
     socket.on('game:player_disconnected', handlePlayerDisconnected); // Game ended due to disconnect
-    socket.on('game:ended', handlePlayerDisconnected);
 
     return () => {
       socket.off('roundResult', handleResult);
@@ -426,7 +436,6 @@ const RockPaperScissors = () => {
       socket.off('rematch:accepted', handleRematchAccepted);
       socket.off('rematch:rejected', handleRematchRejected);
       socket.off('game:player_disconnected', handlePlayerDisconnected);
-      socket.off('game:ended', handlePlayerDisconnected);
       socket.off('rpsTimerUpdate', handleTimerUpdate);
     };
   }, [currentGame?.guest, refreshGameDetails, setStatusMessage, setCurrentGame, socket, lockedMove]);
@@ -448,6 +457,41 @@ const RockPaperScissors = () => {
     socket.emit('submitMove', { code: currentGame.code, move: choice });
   };
 
+  const handleExitGame = async () => {
+    if (!currentGame?.code) {
+      resetGame();
+      setSelectedGameType(null);
+      navigate('/arena', { replace: true });
+      return;
+    }
+
+    if (currentGame.status === 'COMPLETE') {
+      resetGame();
+      setSelectedGameType(null);
+      navigate('/arena', { replace: true });
+      return;
+    }
+
+    const confirmExit = window.confirm('Are you sure you want to exit? The game will end and your opponent wins.');
+    if (!confirmExit) return;
+
+    try {
+      await api.post('/games/end-game', { code: currentGame.code });
+      resetGame();
+      setSelectedGameType(null);
+      setResult(null);
+      setScores({ host: 0, guest: 0 });
+      setRoundsPlayed(0);
+      setLockedMove('');
+      setOpponentLock('');
+      setTimeRemaining(null);
+      navigate('/arena', { replace: true });
+    } catch (err) {
+      console.error('Failed to exit game:', err);
+      setStatusMessage(err.response?.data?.message || 'Failed to exit game');
+    }
+  };
+
   if (!currentGame) {
     return (
       <div className="glass-panel p-6 text-center text-white/70">
@@ -460,9 +504,18 @@ const RockPaperScissors = () => {
     <section className="glass-panel space-y-6 p-6 text-white">
       <header>
         <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.4em] text-white/50">Game 1</p>
-            <h3 className="text-2xl font-semibold">Rock • Paper • Scissors</h3>
+          <div className="flex items-center gap-3">
+            {/* Exit Game Button */}
+            <button
+              onClick={handleExitGame}
+              className="rounded-lg border-2 border-red-500 bg-red-600 px-3 py-1.5 text-sm font-bold text-white hover:bg-red-700 transition shadow-lg"
+            >
+              ✕ Exit
+            </button>
+            <div>
+              <p className="text-xs uppercase tracking-[0.4em] text-white/50">Game 1</p>
+              <h3 className="text-2xl font-semibold">Rock • Paper • Scissors</h3>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <div className={`h-2 w-2 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400'}`} />

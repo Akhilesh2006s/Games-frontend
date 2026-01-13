@@ -399,31 +399,33 @@ const ArenaPage = () => {
         </div>
       ) : (
         <>
-          {/* Tab Navigation */}
-          <div className="mb-6 flex gap-2 rounded-full bg-white/5 p-1">
-            <button
-              onClick={() => setActiveTab('arena')}
-              className={`flex-1 rounded-full px-6 py-3 text-sm font-semibold transition ${
-                activeTab === 'arena'
-                  ? 'bg-aurora text-night shadow-lg'
-                  : 'text-white/70 hover:text-white hover:bg-white/10'
-              }`}
-            >
-              Live Arena
-            </button>
-            <button
-              onClick={() => setActiveTab('online')}
-              className={`flex-1 rounded-full px-6 py-3 text-sm font-semibold transition ${
-                activeTab === 'online'
-                  ? 'bg-aurora text-night shadow-lg'
-                  : 'text-white/70 hover:text-white hover:bg-white/10'
-              }`}
-            >
-              Online Players
-            </button>
-          </div>
+          {/* Tab Navigation - Only show when no game is active */}
+          {!currentGame?.code && (
+            <div className="mb-6 flex gap-2 rounded-full bg-white/5 p-1">
+              <button
+                onClick={() => setActiveTab('arena')}
+                className={`flex-1 rounded-full px-6 py-3 text-sm font-semibold transition ${
+                  activeTab === 'arena'
+                    ? 'bg-aurora text-night shadow-lg'
+                    : 'text-white/70 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                Live Arena
+              </button>
+              <button
+                onClick={() => setActiveTab('online')}
+                className={`flex-1 rounded-full px-6 py-3 text-sm font-semibold transition ${
+                  activeTab === 'online'
+                    ? 'bg-aurora text-night shadow-lg'
+                    : 'text-white/70 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                Online Players
+              </button>
+            </div>
+          )}
 
-          {activeTab === 'online' ? (
+          {activeTab === 'online' && !currentGame?.code ? (
             <OnlinePlayers onJoinGame={() => setActiveTab('arena')} />
           ) : (
             <>
@@ -936,7 +938,15 @@ const ArenaPage = () => {
                     <div className="flex flex-col items-end gap-2">
                       {currentGame?.code && (
                         <button
-                          onClick={() => {
+                          onClick={async () => {
+                            // Cancel the game on server if no opponent has joined yet
+                            if (currentGame?.code && !currentGame?.guest) {
+                              try {
+                                await api.post('/games/cancel', { code: currentGame.code });
+                              } catch (err) {
+                                console.error('Failed to cancel game:', err);
+                              }
+                            }
                             // Clear game code and selected type to go back to selection
                             setCurrentGame(null);
                             setSelectedGameType(null);

@@ -1,36 +1,46 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../services/api';
 import useAuthStore from '../store/useAuthStore';
 
 const GameHistory = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const user = useAuthStore((state) => state.user);
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('all'); // 'all', 'complete', 'in_progress'
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  useEffect(() => {
-    const fetchGames = async () => {
-      try {
-        setLoading(true);
-        // Pass filter to backend for server-side filtering
-        const params = filter !== 'all' ? { status: filter } : {};
-        const { data } = await api.get('/games', { params });
-        const games = data.games || [];
-        // Games are already sorted by backend (-updatedAt)
-        setGames(games);
-        setError('');
-      } catch (err) {
-        setError(err.response?.data?.message || 'Failed to load game history');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchGames();
+  const fetchGames = useCallback(async () => {
+    try {
+      setLoading(true);
+      // Pass filter to backend for server-side filtering
+      const params = filter !== 'all' ? { status: filter } : {};
+      // Add timestamp to prevent caching
+      params._t = Date.now();
+      const { data } = await api.get('/games', { params });
+      const games = data.games || [];
+      // Games are already sorted by backend (completedAt, updatedAt, createdAt)
+      setGames(games);
+      setError('');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to load game history');
+    } finally {
+      setLoading(false);
+    }
   }, [filter]);
+
+  // Fetch on mount, filter change, or when navigating back to this page
+  useEffect(() => {
+    fetchGames();
+  }, [fetchGames, refreshKey]);
+
+  // Refetch when user navigates back to this page
+  useEffect(() => {
+    setRefreshKey(prev => prev + 1);
+  }, [location.key]);
 
   const formatDate = (date) => {
     if (!date) return 'N/A';
@@ -156,17 +166,19 @@ const GameHistory = () => {
                     </div>
                   </div>
 
-                  {/* Scores */}
+                  {/* Scores - Only show cards for games that were actually played */}
                   <div className="grid grid-cols-3 gap-4 mb-3">
-                    {game.hostScore > 0 || game.guestScore > 0 ? (
+                    {/* RPS Card - show if RPS was played (has scores or activeStage is RPS) */}
+                    {(game.hostScore > 0 || game.guestScore > 0 || game.activeStage === 'ROCK_PAPER_SCISSORS') ? (
                       <div className="rounded-lg border border-white/10 bg-white/5 p-3">
                         <p className="text-xs uppercase tracking-wide text-white/50 mb-1">RPS</p>
                         <p className="text-lg font-bold">
-                          {game.hostScore} - {game.guestScore}
+                          {game.hostScore || 0} - {game.guestScore || 0}
                         </p>
                       </div>
                     ) : null}
-                    {(game.activeStage === 'GAME_OF_GO' || game.goFinalScore || game.goBoardSize) ? (
+                    {/* Go Card - only show if Go was actually played (has final score, captures, or activeStage is Go) */}
+                    {(game.activeStage === 'GAME_OF_GO' || game.goFinalScore || game.goCapturedBlack > 0 || game.goCapturedWhite > 0) ? (
                       <div className="rounded-lg border border-white/10 bg-white/5 p-3">
                         <p className="text-xs uppercase tracking-wide text-white/50 mb-1">Go</p>
                         {game.goFinalScore ? (
@@ -187,11 +199,12 @@ const GameHistory = () => {
                         ) : null}
                       </div>
                     ) : null}
-                    {game.hostPenniesScore > 0 || game.guestPenniesScore > 0 ? (
+                    {/* Pennies Card - show if Pennies was played (has scores or activeStage is Pennies) */}
+                    {(game.hostPenniesScore > 0 || game.guestPenniesScore > 0 || game.activeStage === 'MATCHING_PENNIES') ? (
                       <div className="rounded-lg border border-white/10 bg-white/5 p-3">
                         <p className="text-xs uppercase tracking-wide text-white/50 mb-1">Pennies</p>
                         <p className="text-lg font-bold">
-                          {game.hostPenniesScore} - {game.guestPenniesScore}
+                          {game.hostPenniesScore || 0} - {game.guestPenniesScore || 0}
                         </p>
                       </div>
                     ) : null}
