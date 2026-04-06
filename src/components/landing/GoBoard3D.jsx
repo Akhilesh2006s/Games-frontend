@@ -106,7 +106,7 @@ export default function GoBoard3D() {
         </div>
       </div>
       
-      <style jsx>{`
+      <style>{`
         @keyframes stonePlace {
           0% {
             transform: translate(-50%, -50%) scale(0);
