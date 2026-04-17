@@ -1,29 +1,28 @@
 import { useState, useEffect } from 'react';
 
+const BOARD_SIZE = 19;
+const BOARD_LAST_INDEX = BOARD_SIZE - 1;
+
 // Stone positions for the animated game sequence
 const stoneSequence = [
-  { top: '15%', left: '20%', color: 'white', delay: 500 },
-  { top: '20%', left: '25%', color: 'black', delay: 1000 },
-  { top: '25%', left: '20%', color: 'black', delay: 1500 },
-  { top: '20%', left: '15%', color: 'white', delay: 2000 },
-  { top: '50%', left: '50%', color: 'black', delay: 2500 },
-  { top: '45%', left: '45%', color: 'white', delay: 3000 },
-  { top: '80%', left: '75%', color: 'black', delay: 3500 },
-  { top: '75%', left: '80%', color: 'white', delay: 4000 },
-  { top: '80%', left: '85%', color: 'white', delay: 4500 },
-  { top: '15%', left: '80%', color: 'black', delay: 5000 },
-  { top: '20%', left: '75%', color: 'white', delay: 5500 },
-  { top: '20%', left: '85%', color: 'black', delay: 6000 },
+  { row: 3, col: 3, color: 'black', delay: 500 },
+  { row: 15, col: 15, color: 'white', delay: 1000 },
+  { row: 3, col: 15, color: 'black', delay: 1500 },
+  { row: 15, col: 3, color: 'white', delay: 2000 },
+  { row: 9, col: 9, color: 'black', delay: 2500 },
+  { row: 9, col: 6, color: 'white', delay: 3000 },
+  { row: 6, col: 9, color: 'black', delay: 3500 },
+  { row: 12, col: 9, color: 'white', delay: 4000 },
+  { row: 9, col: 12, color: 'black', delay: 4500 },
+  { row: 5, col: 5, color: 'white', delay: 5000 },
+  { row: 13, col: 13, color: 'black', delay: 5500 },
+  { row: 5, col: 13, color: 'white', delay: 6000 },
 ];
 
 export default function GoBoard3D() {
   const [visibleStones, setVisibleStones] = useState([]);
-  const [isAnimating, setIsAnimating] = useState(false);
 
   useEffect(() => {
-    // Start animation after component mounts
-    setIsAnimating(true);
-    
     // Reset and replay animation every 8 seconds
     const interval = setInterval(() => {
       setVisibleStones([]);
@@ -53,14 +52,30 @@ export default function GoBoard3D() {
         <div className="absolute inset-0 flex items-center justify-center">
           {/* Board Background */}
           <div className="relative w-[90%] h-[90%] bg-gradient-to-br from-amber-800/40 to-amber-900/30 rounded-lg shadow-2xl border-2 border-amber-700/30">
-            {/* Grid Pattern */}
-            <div className="absolute inset-4 grid gap-0 opacity-40" style={{ gridTemplateColumns: 'repeat(19, 1fr)', gridTemplateRows: 'repeat(19, 1fr)' }}>
-              {Array.from({ length: 361 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="border border-amber-600/20"
-                />
-              ))}
+            {/* Go board lines and star points */}
+            <div className="absolute inset-8">
+              <svg className="w-full h-full opacity-60" viewBox="0 0 100 100" preserveAspectRatio="none">
+                {Array.from({ length: BOARD_SIZE }).map((_, index) => {
+                  const pos = (index / BOARD_LAST_INDEX) * 100;
+                  return (
+                    <g key={index}>
+                      <line x1={0} y1={pos} x2={100} y2={pos} stroke="rgba(180, 83, 9, 0.5)" strokeWidth="0.35" />
+                      <line x1={pos} y1={0} x2={pos} y2={100} stroke="rgba(180, 83, 9, 0.5)" strokeWidth="0.35" />
+                    </g>
+                  );
+                })}
+                {[3, 9, 15].flatMap((row) =>
+                  [3, 9, 15].map((col) => (
+                    <circle
+                      key={`${row}-${col}`}
+                      cx={(col / BOARD_LAST_INDEX) * 100}
+                      cy={(row / BOARD_LAST_INDEX) * 100}
+                      r="0.85"
+                      fill="rgba(120, 53, 15, 0.8)"
+                    />
+                  ))
+                )}
+              </svg>
             </div>
             
             {/* Animated Stones - appearing one by one */}
@@ -69,7 +84,7 @@ export default function GoBoard3D() {
               return (
                 <div
                   key={index}
-                  className={`absolute w-8 h-8 rounded-full shadow-lg transition-all duration-500 ${
+                  className={`absolute w-7 h-7 md:w-8 md:h-8 rounded-full shadow-lg transition-all duration-500 ${
                     stone.color === 'white' 
                       ? 'bg-white/90 border-2 border-gray-300/50' 
                       : 'bg-gray-900 border-2 border-gray-700/50'
@@ -79,8 +94,8 @@ export default function GoBoard3D() {
                       : 'opacity-0 scale-0'
                   }`}
                   style={{
-                    top: stone.top,
-                    left: stone.left,
+                    top: `calc(2rem + (${stone.row} / ${BOARD_LAST_INDEX}) * (100% - 4rem))`,
+                    left: `calc(2rem + (${stone.col} / ${BOARD_LAST_INDEX}) * (100% - 4rem))`,
                     transform: isVisible ? 'translate(-50%, -50%) scale(1)' : 'translate(-50%, -50%) scale(0)',
                     animation: isVisible ? 'stonePlace 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none',
                   }}
