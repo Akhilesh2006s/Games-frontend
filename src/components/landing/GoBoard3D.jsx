@@ -84,7 +84,7 @@ export default function GoBoard3D() {
               return (
                 <div
                   key={index}
-                  className={`absolute w-7 h-7 md:w-8 md:h-8 rounded-full shadow-lg transition-all duration-500 ${
+                  className={`absolute w-5 h-5 md:w-6 md:h-6 rounded-full shadow-lg transition-all duration-500 ${
                     stone.color === 'white' 
                       ? 'bg-white/90 border-2 border-gray-300/50' 
                       : 'bg-gray-900 border-2 border-gray-700/50'

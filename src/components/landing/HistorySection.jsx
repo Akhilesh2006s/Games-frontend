@@ -28,6 +28,15 @@ const timelineEvents = [
   },
 ];
 
+const BOARD_SIZE = 9;
+const BOARD_LAST_INDEX = BOARD_SIZE - 1;
+const DECORATIVE_STONES = [
+  { row: 2, col: 2, color: 'black' },
+  { row: 3, col: 6, color: 'white' },
+  { row: 6, col: 4, color: 'black' },
+  { row: 7, col: 7, color: 'white' },
+];
+
 export default function HistorySection() {
   const sectionRef = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -89,29 +98,63 @@ export default function HistorySection() {
             <div className="relative rounded-2xl overflow-hidden card-glass p-8">
               {/* Ancient Go Board Illustration */}
               <div className="aspect-square bg-gradient-to-br from-amber-900/40 to-amber-800/20 rounded-xl flex items-center justify-center relative overflow-hidden">
-                {/* Decorative grid pattern */}
-                <div className="absolute inset-4 grid grid-cols-9 grid-rows-9 gap-0">
-                  {Array.from({ length: 81 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className="border border-amber-700/30"
-                    />
-                  ))}
+                {/* 9x9 board lines */}
+                <div className="absolute inset-5">
+                  <svg className="w-full h-full opacity-60" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    {Array.from({ length: BOARD_SIZE }).map((_, index) => {
+                      const pos = (index / BOARD_LAST_INDEX) * 100;
+                      return (
+                        <g key={index}>
+                          <line x1={0} y1={pos} x2={100} y2={pos} stroke="rgba(180, 83, 9, 0.5)" strokeWidth="0.5" />
+                          <line x1={pos} y1={0} x2={pos} y2={100} stroke="rgba(180, 83, 9, 0.5)" strokeWidth="0.5" />
+                        </g>
+                      );
+                    })}
+                    {[2, 4, 6].flatMap((row) =>
+                      [2, 4, 6].map((col) => (
+                        <circle
+                          key={`${row}-${col}`}
+                          cx={(col / BOARD_LAST_INDEX) * 100}
+                          cy={(row / BOARD_LAST_INDEX) * 100}
+                          r="1"
+                          fill="rgba(120, 53, 15, 0.8)"
+                        />
+                      ))
+                    )}
+                  </svg>
                 </div>
                 
-                {/* Decorative stones */}
-                <div className="absolute top-1/4 left-1/4 w-6 h-6 rounded-full bg-foreground/90 shadow-lg" />
-                <div className="absolute top-1/3 right-1/3 w-6 h-6 rounded-full bg-muted shadow-lg" />
-                <div className="absolute bottom-1/3 left-1/2 w-6 h-6 rounded-full bg-foreground/90 shadow-lg" />
-                <div className="absolute bottom-1/4 right-1/4 w-6 h-6 rounded-full bg-muted shadow-lg" />
+                {/* Decorative stones on line intersections */}
+                {DECORATIVE_STONES.map((stone) => (
+                  <div
+                    key={`${stone.row}-${stone.col}`}
+                    className={`absolute w-5 h-5 md:w-6 md:h-6 rounded-full shadow-lg ${
+                      stone.color === 'black' ? 'bg-foreground/90' : 'bg-muted'
+                    }`}
+                    style={{
+                      top: `calc(1.25rem + (${stone.row} / ${BOARD_LAST_INDEX}) * (100% - 2.5rem))`,
+                      left: `calc(1.25rem + (${stone.col} / ${BOARD_LAST_INDEX}) * (100% - 2.5rem))`,
+                      transform: 'translate(-50%, -50%)',
+                    }}
+                  />
+                ))}
                 
                 {/* Ancient scroll decoration */}
                 <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-background/40" />
                 
-                <div className="relative z-10 text-center p-6">
+                <div
+                  className="absolute z-10 text-center"
+                  style={{
+                    top: `calc(1.25rem + (4 / ${BOARD_LAST_INDEX}) * (100% - 2.5rem))`,
+                    left: `calc(1.25rem + (4 / ${BOARD_LAST_INDEX}) * (100% - 2.5rem))`,
+                    transform: 'translate(-50%, -50%)',
+                  }}
+                >
                   <span className="font-display text-6xl md:text-7xl text-gradient opacity-80">碁</span>
-                  <p className="mt-4 font-body text-lg text-muted-foreground">Ancient Chinese character for Go</p>
                 </div>
+                <p className="absolute bottom-6 left-1/2 -translate-x-1/2 font-body text-lg text-muted-foreground z-10">
+                  Ancient Chinese character for Go
+                </p>
               </div>
               
               {/* Glow effect */}
